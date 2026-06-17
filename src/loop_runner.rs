@@ -75,11 +75,11 @@ fn classify_error(body: &str) -> Option<String> {
 }
 
 fn is_retryable(err_type: &str) -> bool {
-    RETRYABLE_ERROR_TYPES.iter().any(|t| *t == err_type)
+    RETRYABLE_ERROR_TYPES.contains(&err_type)
 }
 
 fn is_fatal(err_type: &str) -> bool {
-    FATAL_ERROR_TYPES.iter().any(|t| *t == err_type)
+    FATAL_ERROR_TYPES.contains(&err_type)
 }
 
 // ---------------------------------------------------------------------------
@@ -153,10 +153,10 @@ pub fn build_llm_messages(
                 });
             }
         } else if role == "assistant" {
-            if !pending_tool_call_ids.is_empty() {
-                if out.last().map(|m| m.role.as_str()) == Some("assistant") {
-                    out.pop();
-                }
+            if !pending_tool_call_ids.is_empty()
+                && out.last().map(|m| m.role.as_str()) == Some("assistant")
+            {
+                out.pop();
             }
             pending_tool_call_ids.clear();
             if let Ok(v) = serde_json::from_str::<Value>(content) {
@@ -223,10 +223,10 @@ pub fn build_llm_messages(
             });
         } else {
             // Non-assistant/non-tool row: drop orphan assistant
-            if !pending_tool_call_ids.is_empty() {
-                if out.last().map(|m| m.role.as_str()) == Some("assistant") {
-                    out.pop();
-                }
+            if !pending_tool_call_ids.is_empty()
+                && out.last().map(|m| m.role.as_str()) == Some("assistant")
+            {
+                out.pop();
             }
             pending_tool_call_ids.clear();
             if role == "system" {
@@ -257,10 +257,10 @@ pub fn build_llm_messages(
             });
         }
     }
-    if !pending_tool_call_ids.is_empty() {
-        if out.last().map(|m| m.role.as_str()) == Some("assistant") {
-            out.pop();
-        }
+    if !pending_tool_call_ids.is_empty()
+        && out.last().map(|m| m.role.as_str()) == Some("assistant")
+    {
+        out.pop();
     }
     out
 }
@@ -351,7 +351,7 @@ async fn stream_chat<E: EventEmitter>(
     let url = format!("{}{}", base_url.trim_end_matches('/'), formatter.chat_path());
     let mut last_err = String::from("Stream failed");
 
-    for attempt in 0..=RETRY_DELAYS_MS.len() {
+    for (attempt, &delay) in RETRY_DELAYS_MS.iter().enumerate() {
         let resp = http_client
             .post(&url)
             .headers(headers.clone())
@@ -365,7 +365,7 @@ async fn stream_chat<E: EventEmitter>(
                 if attempt >= RETRY_DELAYS_MS.len() {
                     return Err(last_err);
                 }
-                jittered_sleep_ms(RETRY_DELAYS_MS[attempt]).await;
+                jittered_sleep_ms(delay).await;
                 continue;
             }
         };
@@ -380,7 +380,7 @@ async fn stream_chat<E: EventEmitter>(
             if !retryable || attempt >= RETRY_DELAYS_MS.len() {
                 return Err(last_err);
             }
-            jittered_sleep_ms(RETRY_DELAYS_MS[attempt]).await;
+            jittered_sleep_ms(delay).await;
             continue;
         }
 

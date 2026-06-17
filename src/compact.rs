@@ -82,7 +82,7 @@ fn classify_error(body: &str) -> Option<String> {
 }
 
 fn is_retryable(err_type: &str) -> bool {
-    RETRYABLE_ERROR_TYPES.iter().any(|t| *t == err_type)
+    RETRYABLE_ERROR_TYPES.contains(&err_type)
 }
 
 async fn jittered_sleep_ms(base_ms: u64) {
@@ -102,7 +102,7 @@ pub async fn post_chat_completions_compact(
 ) -> Result<reqwest::Response, String> {
     let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
     let mut last_err = String::from("LLM request failed");
-    for attempt in 0..=RETRY_DELAYS_MS.len() {
+    for (attempt, &delay) in RETRY_DELAYS_MS.iter().enumerate() {
         let resp = http_client
             .post(&url)
             .headers(headers.clone())
@@ -131,7 +131,7 @@ pub async fn post_chat_completions_compact(
                 }
             }
         }
-        jittered_sleep_ms(RETRY_DELAYS_MS[attempt]).await;
+        jittered_sleep_ms(delay).await;
     }
     Err(last_err)
 }
@@ -418,7 +418,7 @@ async fn insert_compact_boundary<S: SessionStore>(
 /// 1) Try backward-safe split with KEEP_LAST_PAIRS=4.
 /// 2) If it collapses to zero, retry with keep_pairs 2, then 1.
 /// 3) If still zero, do a forward walk from the keep_pairs=1 proposed split.
-/// Emits `agent-loop-compacting` phase start/end around summarize_with_llm.
+///    Emits `agent-loop-compacting` phase start/end around summarize_with_llm.
 async fn run_compact_inner<S: SessionStore, E: EventEmitter>(
     session_id: &str,
     settings: &Value,

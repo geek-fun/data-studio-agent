@@ -225,15 +225,15 @@ pub async fn append<S: SessionStore + 'static, E: EventEmitter + 'static>(
             })
             .unwrap_or(false);
 
-    if !has_pending_tool_calls && auto_compact_enabled(settings) {
-        if try_acquire_inflight(session_id) {
-            spawn_background_compact(
+    if !has_pending_tool_calls && auto_compact_enabled(settings)
+        && try_acquire_inflight(session_id)
+    {
+        spawn_background_compact(
                 store.clone(),
                 emitter.clone(),
                 settings.clone(),
                 session_id.to_string(),
             );
-        }
     }
 
     Ok(())

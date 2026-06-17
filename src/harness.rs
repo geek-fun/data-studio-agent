@@ -442,7 +442,7 @@ pub async fn list_llm_models(
         .map_err(|e| format!("Failed to parse models response: {}", e))?;
 
     Ok(provider_adapter::extract_model_ids(
-        &api_compatibility,
+        api_compatibility,
         &payload,
     ))
 }

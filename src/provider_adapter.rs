@@ -137,7 +137,7 @@ pub fn build_headers(settings: &Value) -> Result<HeaderMap, String> {
 
     if !api_key.is_empty() && !config.auth_header_name.is_empty() {
         let header_value = if config.auth_header_prefix.is_empty() {
-            format!("{}", api_key)
+            api_key.to_string()
         } else {
             format!("{}{}", config.auth_header_prefix, api_key)
         };
