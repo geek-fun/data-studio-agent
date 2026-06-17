@@ -9,12 +9,6 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Duration;
 
-use futures::future::{select, Either};
-use futures::pin_mut;
-use futures::StreamExt;
-use serde_json::{json, Value};
-use tokio::sync::oneshot;
-
 use crate::chat_formatter::{
     AnthropicChatFormatter, ChatFormatter, LlmMessage, LlmToolCall, OpenAIChatFormatter,
 };
@@ -29,6 +23,12 @@ use crate::token_counter::count_chat_messages;
 use crate::tool_executor::{ToolEnvelope, ToolExecutor};
 use crate::tools::get_tool_required_params;
 use crate::traits::{CancelMap, ConfirmMap, EventEmitter, SessionStore, StoredMessage};
+use futures::future::{select, Either};
+use futures::pin_mut;
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
+use serde_json::{json, Value};
+use tokio::sync::oneshot;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -510,6 +510,7 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
     fallback_connection_config: Value,
     confirm_map: &ConfirmMap,
     cancel_map: &CancelMap,
+    is_parallel_ok: &dyn Fn(&str) -> bool,
 ) -> Result<(), String> {
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
     {
@@ -534,6 +535,7 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
         fallback_connection_config,
         confirm_map,
         cancel_rx,
+        is_parallel_ok,
     )
     .await;
 
@@ -552,6 +554,20 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
 }
 
 // ---------------------------------------------------------------------------
+// PreparedToolCall — collects confirmed tools for phased execution
+// ---------------------------------------------------------------------------
+
+struct PreparedToolCall {
+    tool_call_id: String,
+    #[allow(dead_code)]
+    assistant_message_id: String,
+    tool_name: String,
+    arguments: Value,
+    resolved_config: Value,
+    parallel_ok: bool,
+}
+
+// ---------------------------------------------------------------------------
 // Main Loop — Inner
 // ---------------------------------------------------------------------------
 
@@ -566,6 +582,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
     fallback_connection_config: Value,
     confirm_map: &ConfirmMap,
     mut cancel_rx: oneshot::Receiver<()>,
+    is_parallel_ok: &dyn Fn(&str) -> bool,
 ) -> Result<(), String> {
     store.update_session_status(session_id, "running").await?;
 
@@ -840,6 +857,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             json!({"session_id": session_id, "message_id": assistant_message_id}),
         );
 
+        let mut prepared: Vec<PreparedToolCall> = Vec::new();
         for (tc, tool_call_id) in acc.tool_calls.iter().zip(resolved_tool_ids.iter()) {
             let tool_call_id: String = tool_call_id.clone();
             let tool_name: String = tc.name.clone();
@@ -1103,99 +1121,246 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
 
             store.update_tool_call_status(&tool_call_id, "approved").await?;
 
-            // Execute tool with cancellation support
-            let envelope: ToolEnvelope = {
-                let exec_fut =
-                    tool_executor.execute(&tool_name, &arguments_value, &resolved_config);
-                let cancel_fut = &mut cancel_rx;
-                pin_mut!(exec_fut);
-                pin_mut!(cancel_fut);
-                match select(exec_fut, cancel_fut).await {
-                    Either::Left((result, _)) => match result {
-                        Ok(env) => env,
-                        Err(e) => {
-                            store.update_tool_call_status(&tool_call_id, "failed").await?;
-                            let err_content = format!("Tool execution error: {}", e);
-                            let error_msg = json!({
-                                "tool_call_id": tool_call_id,
-                                "name": tool_name,
-                                "content": err_content,
-                            });
-                            inline_append(
-                                store,
-                                emitter,
-                                settings,
-                                &new_id(),
-                                session_id,
-                                "tool",
-                                &error_msg.to_string(),
-                            )
-                            .await?;
-                            emitter.emit(
-                                "agent-loop-tool-result",
-                                json!({
-                                    "session_id": session_id,
-                                    "tool_call_id": tool_call_id,
-                                    "error": true,
-                                    "envelope": { "summary": err_content },
-                                }),
-                            );
-                            continue;
+            let parallel_ok = is_parallel_ok(&tool_name);
+            prepared.push(PreparedToolCall {
+                tool_call_id: tool_call_id.clone(),
+                assistant_message_id: assistant_message_id.clone(),
+                tool_name: tool_name.clone(),
+                arguments: arguments_value.clone(),
+                resolved_config,
+                parallel_ok,
+            });
+        }
+
+        if prepared.is_empty() {
+            return Ok(());
+        }
+        execute_phase2_3(
+            session_id,
+            &assistant_message_id,
+            prepared,
+            store,
+            emitter,
+            tool_executor,
+            &mut cancel_rx,
+        )
+        .await?;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 2+3: Parallel execution + result processing
+// ---------------------------------------------------------------------------
+
+struct ToolExecutionResult {
+    index: usize,
+    tool_call_id: String,
+    tool_name: String,
+    result: Result<ToolEnvelope, String>,
+    cancelled: bool,
+}
+
+async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
+    session_id: &str,
+    _assistant_message_id: &str,
+    prepared: Vec<PreparedToolCall>,
+    store: &S,
+    emitter: &E,
+    tool_executor: &dyn ToolExecutor,
+    cancel_rx: &mut oneshot::Receiver<()>,
+) -> Result<(), String> {
+    // --- Phase 2: Partition into execution groups & execute ---
+    let mut all_results: Vec<ToolExecutionResult> = Vec::new();
+    let mut global_cancelled = false;
+    let mut pos = 0;
+
+    while pos < prepared.len() {
+        let group_start = pos;
+        let is_parallel = prepared[pos].parallel_ok;
+        while pos < prepared.len() && prepared[pos].parallel_ok == is_parallel {
+            pos += 1;
+        }
+        let group_end = pos;
+
+        if is_parallel && (group_end - group_start) > 1 {
+            // Parallel batch via FuturesUnordered
+            let mut futs = FuturesUnordered::new();
+            #[allow(clippy::needless_range_loop)]
+            for j in group_start..group_end {
+                let tool = &prepared[j];
+                let index = j;
+                let tool_call_id = tool.tool_call_id.clone();
+                let tool_name = tool.tool_name.clone();
+                let arguments = tool.arguments.clone();
+                let resolved_config = tool.resolved_config.clone();
+
+                futs.push(async move {
+                    let result =
+                        tool_executor.execute(&tool_name, &arguments, &resolved_config).await;
+                    ToolExecutionResult { index, tool_call_id, tool_name, result, cancelled: false }
+                });
+            }
+
+            let mut batch_completed: Vec<ToolExecutionResult> = Vec::new();
+            loop {
+                tokio::select! {
+                    biased;
+                    _ = &mut *cancel_rx => {
+                        global_cancelled = true;
+                        break;
+                    }
+                    result = futs.next() => {
+                        match result {
+                            Some(r) => batch_completed.push(r),
+                            None => break,
+                        }
+                    }
+                }
+            }
+
+            let completed_indices: HashSet<usize> =
+                batch_completed.iter().map(|r| r.index).collect();
+            #[allow(clippy::needless_range_loop)]
+            for j in group_start..group_end {
+                if !completed_indices.contains(&j) {
+                    let tool = &prepared[j];
+                    all_results.push(ToolExecutionResult {
+                        index: j,
+                        tool_call_id: tool.tool_call_id.clone(),
+                        tool_name: tool.tool_name.clone(),
+                        result: Err("cancelled".to_string()),
+                        cancelled: true,
+                    });
+                }
+            }
+            all_results.extend(batch_completed);
+        } else {
+            // Sequential: single tool
+            let tool = &prepared[group_start];
+            let index = group_start;
+            let tool_call_id = tool.tool_call_id.clone();
+            let tool_name = tool.tool_name.clone();
+
+            let tr = tokio::select! {
+                biased;
+                _ = &mut *cancel_rx => {
+                    ToolExecutionResult {
+                        index,
+                        tool_call_id,
+                        tool_name,
+                        result: Err("cancelled".to_string()),
+                        cancelled: true,
+                    }
+                }
+                r = tool_executor.execute(&tool.tool_name, &tool.arguments, &tool.resolved_config) => {
+                    match r {
+                        Ok(envelope) => ToolExecutionResult {
+                            index,
+                            tool_call_id,
+                            tool_name,
+                            result: Ok(envelope),
+                            cancelled: false,
                         },
-                    },
-                    Either::Right((_, _)) => {
-                        store.update_tool_call_status(&tool_call_id, "failed").await?;
-                        let cancel_msg = json!({
-                            "tool_call_id": tool_call_id,
-                            "name": tool_name,
-                            "content": format!(
-                                "Tool '{}' was cancelled before completion. Partial execution may have occurred.",
-                                tool_name
-                            ),
-                        });
-                        inline_append(
-                            store,
-                            emitter,
-                            settings,
-                            &new_id(),
-                            session_id,
-                            "tool",
-                            &cancel_msg.to_string(),
-                        )
-                        .await?;
-                        return Err("cancelled".to_string());
-                    },
+                        Err(e) => ToolExecutionResult {
+                            index,
+                            tool_call_id,
+                            tool_name,
+                            result: Err(e),
+                            cancelled: false,
+                        },
+                    }
                 }
             };
 
-            store.insert_tool_result(&tool_call_id, &envelope.full_result).await?;
-            store.update_tool_call_status(&tool_call_id, "completed").await?;
-
-            emitter.emit(
-                "agent-loop-tool-result",
-                json!({
-                    "session_id": session_id,
-                    "tool_call_id": tool_call_id,
-                    "envelope": envelope,
-                }),
-            );
-
-            let tool_msg = json!({
-                "tool_call_id": tool_call_id,
-                "name": tool_name,
-                "content": envelope.summary,
-            });
-            inline_append(
-                store,
-                emitter,
-                settings,
-                &new_id(),
-                session_id,
-                "tool",
-                &tool_msg.to_string(),
-            )
-            .await?;
+            if tr.cancelled {
+                global_cancelled = true;
+            }
+            all_results.push(tr);
         }
+
+        if global_cancelled {
+            break;
+        }
+    }
+
+    // Mark any remaining unprocessed tools as cancelled
+    if global_cancelled {
+        let processed: HashSet<usize> = all_results.iter().map(|r| r.index).collect();
+        for (j, tool) in prepared.iter().enumerate() {
+            if !processed.contains(&j) {
+                all_results.push(ToolExecutionResult {
+                    index: j,
+                    tool_call_id: tool.tool_call_id.clone(),
+                    tool_name: tool.tool_name.clone(),
+                    result: Err("cancelled".to_string()),
+                    cancelled: true,
+                });
+            }
+        }
+    }
+
+    // --- Phase 3: Process results in original order ---
+    all_results.sort_by_key(|r| r.index);
+
+    for result in &all_results {
+        if result.cancelled {
+            store.update_tool_call_status(&result.tool_call_id, "failed").await?;
+            let cancel_msg = json!({
+                "tool_call_id": result.tool_call_id,
+                "name": result.tool_name,
+                "content": "Tool call was cancelled.",
+            });
+            store.write_message(&new_id(), session_id, "tool", &cancel_msg.to_string()).await?;
+        } else {
+            match &result.result {
+                Ok(envelope) => {
+                    store.insert_tool_result(&result.tool_call_id, &envelope.full_result).await?;
+                    store.update_tool_call_status(&result.tool_call_id, "completed").await?;
+                    emitter.emit(
+                        "agent-loop-tool-result",
+                        json!({
+                            "session_id": session_id,
+                            "tool_call_id": result.tool_call_id,
+                            "envelope": envelope,
+                        }),
+                    );
+                    let tool_msg = json!({
+                        "tool_call_id": result.tool_call_id,
+                        "name": result.tool_name,
+                        "content": envelope.summary,
+                    });
+                    store
+                        .write_message(&new_id(), session_id, "tool", &tool_msg.to_string())
+                        .await?;
+                },
+                Err(e) => {
+                    store.update_tool_call_status(&result.tool_call_id, "failed").await?;
+                    emitter.emit(
+                        "agent-loop-tool-result",
+                        json!({
+                            "session_id": session_id,
+                            "tool_call_id": result.tool_call_id,
+                            "error": true,
+                            "envelope": { "summary": e },
+                        }),
+                    );
+                    let err_msg = json!({
+                        "tool_call_id": result.tool_call_id,
+                        "name": result.tool_name,
+                        "content": e,
+                    });
+                    store
+                        .write_message(&new_id(), session_id, "tool", &err_msg.to_string())
+                        .await?;
+                },
+            }
+        }
+    }
+
+    if global_cancelled {
+        Err("cancelled".to_string())
+    } else {
+        Ok(())
     }
 }
 

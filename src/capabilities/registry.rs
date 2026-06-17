@@ -125,6 +125,7 @@ mod tests {
             input_schema: json!({"type": "object", "properties": {}}),
             risk_level: RiskLevel::Safe,
             required_permission: "read",
+            parallel_ok: false,
             source_kind: source,
             tags,
         }
@@ -225,5 +226,17 @@ mod tests {
 
         assert!(reg.get("exists").is_some());
         assert!(reg.get("does_not_exist").is_none());
+    }
+
+    #[test]
+    fn test_parallel_ok_field() {
+        let mut reg = CapabilityRegistry::new();
+        reg.register(make_cap("read_tool", SourceKind::AppLocal, &["agent"]));
+        reg.register(Capability {
+            parallel_ok: true,
+            ..make_cap("parallel_tool", SourceKind::AppLocal, &["agent"])
+        });
+        assert!(!reg.get("read_tool").unwrap().parallel_ok);
+        assert!(reg.get("parallel_tool").unwrap().parallel_ok);
     }
 }
