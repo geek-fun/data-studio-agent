@@ -510,7 +510,7 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
     fallback_connection_config: Value,
     confirm_map: &ConfirmMap,
     cancel_map: &CancelMap,
-    is_parallel_ok: &dyn Fn(&str) -> bool,
+    is_parallel_ok: &(dyn Fn(&str) -> bool + Send + Sync),
 ) -> Result<(), String> {
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
     {
@@ -582,7 +582,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
     fallback_connection_config: Value,
     confirm_map: &ConfirmMap,
     mut cancel_rx: oneshot::Receiver<()>,
-    is_parallel_ok: &dyn Fn(&str) -> bool,
+    is_parallel_ok: &(dyn Fn(&str) -> bool + Send + Sync),
 ) -> Result<(), String> {
     store.update_session_status(session_id, "running").await?;
 
