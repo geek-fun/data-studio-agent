@@ -26,8 +26,28 @@ pub type LrsStoredMessage = StoredMessage;
 // Constants
 // ---------------------------------------------------------------------------
 
-pub const DEFAULT_COMPACT_RATIO: f64 = 0.75;
-pub const SAFETY_BUFFER_TOKENS: usize = 13_000;
+/// Safety buffer scales with context window so large models get more room
+/// and small models (Ollama 8K default) don't compact immediately.
+/// ≥ 200K → 8,000 | ≥ 32K → 4,000 | < 32K → 2,000
+pub fn safety_buffer_for_window(context_window: usize) -> usize {
+    if context_window >= 200_000 {
+        8_000
+    } else if context_window >= 32_000 {
+        4_000
+    } else {
+        2_000
+    }
+}
+
+/// Compaction ratio: 85% for large windows (≥100K) — less aggressive
+/// summarization when there's plenty of room. 75% otherwise.
+pub fn compact_ratio_for_window(context_window: usize) -> f64 {
+    if context_window >= 100_000 {
+        0.85
+    } else {
+        0.75
+    }
+}
 pub const KEEP_LAST_PAIRS: usize = 4;
 #[allow(dead_code)]
 pub const MAX_CONSECUTIVE_FAILURES: u32 = 3;
@@ -127,12 +147,12 @@ pub async fn post_chat_completions_compact(
 // Evaluation / threshold
 // ---------------------------------------------------------------------------
 
-/// Claude-Code-style trigger: compact at min(ratio * capacity, capacity - safety_buffer).
-/// Whichever fires first wins so very large windows still get a safety margin and
-/// tiny windows (Ollama default 8k) still trigger via the ratio.
-pub fn compact_trigger_threshold(capacity: usize) -> usize {
-    let by_ratio = ((capacity as f64) * DEFAULT_COMPACT_RATIO) as usize;
-    let by_buffer = capacity.saturating_sub(SAFETY_BUFFER_TOKENS);
+pub fn compact_trigger_threshold(spec: &ModelSpec) -> usize {
+    let capacity = usable_window(spec);
+    let ratio = compact_ratio_for_window(spec.context_window);
+    let buffer = safety_buffer_for_window(spec.context_window);
+    let by_ratio = ((capacity as f64) * ratio) as usize;
+    let by_buffer = capacity.saturating_sub(buffer);
     by_ratio.min(by_buffer).max(1)
 }
 
@@ -142,7 +162,7 @@ pub fn evaluate(messages: &[StoredMessage], spec: &ModelSpec) -> CompactDecision
     let used: usize =
         messages.iter().map(|m| estimate_stored_message(&m.role, &m.content, spec)).sum();
     let capacity = usable_window(spec);
-    let trigger_at = compact_trigger_threshold(capacity);
+    let trigger_at = compact_trigger_threshold(spec);
     CompactDecision { capacity, trigger_at, should_compact: used >= trigger_at }
 }
 
@@ -500,4 +520,93 @@ pub async fn run_compact_manual<S: SessionStore, E: EventEmitter>(
     emitter: &E,
 ) -> Result<Option<CompactionInfo>, String> {
     run_compact_inner(session_id, settings, store, Some(emitter), "manual", true).await
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── safety_buffer_for_window ──
+
+    #[test]
+    fn safety_buffer_below_32k() {
+        assert_eq!(safety_buffer_for_window(1000), 2_000);
+        assert_eq!(safety_buffer_for_window(8_192), 2_000);
+        assert_eq!(safety_buffer_for_window(31_999), 2_000);
+    }
+
+    #[test]
+    fn safety_buffer_32k_to_200k() {
+        assert_eq!(safety_buffer_for_window(32_000), 4_000);
+        assert_eq!(safety_buffer_for_window(128_000), 4_000);
+        assert_eq!(safety_buffer_for_window(199_999), 4_000);
+    }
+
+    #[test]
+    fn safety_buffer_200k_plus() {
+        assert_eq!(safety_buffer_for_window(200_000), 8_000);
+        assert_eq!(safety_buffer_for_window(1_000_000), 8_000);
+    }
+
+    // ── compact_ratio_for_window ──
+
+    #[test]
+    fn compact_ratio_below_100k() {
+        assert_eq!(compact_ratio_for_window(1_000), 0.75);
+        assert_eq!(compact_ratio_for_window(8_192), 0.75);
+        assert_eq!(compact_ratio_for_window(99_999), 0.75);
+    }
+
+    #[test]
+    fn compact_ratio_100k_plus() {
+        assert_eq!(compact_ratio_for_window(100_000), 0.85);
+        assert_eq!(compact_ratio_for_window(200_000), 0.85);
+    }
+
+    // ── compact_trigger_threshold with ModelSpec ──
+
+    #[test]
+    fn trigger_small_window_ollama_default() {
+        let spec = ModelSpec {
+            model_id: "llama3".into(),
+            context_window: 8_192,
+            output_reserve: 2_048,
+            tokenizer: TokenizerFamily::Generic,
+        };
+        let trigger = compact_trigger_threshold(&spec);
+        // capacity = 6144, buffer = 2000, ratio = 0.75
+        // by_buffer (4144) wins over by_ratio (4608) → compact at ~4.1K
+        assert_eq!(trigger, 4_144, "small window: buffer (2K) should win over ratio");
+        assert!(trigger > 2_000, "must not trigger at near-zero tokens");
+    }
+
+    #[test]
+    fn trigger_large_window_gpt4o() {
+        let spec = ModelSpec {
+            model_id: "gpt-4o".into(),
+            context_window: 128_000,
+            output_reserve: 16_000,
+            tokenizer: TokenizerFamily::OpenAiO200k,
+        };
+        let trigger = compact_trigger_threshold(&spec);
+        assert!(trigger > 80_000, "128K window should have generous trigger");
+    }
+
+    #[test]
+    fn trigger_huge_window_gpt41() {
+        let spec = ModelSpec {
+            model_id: "gpt-4.1".into(),
+            context_window: 1_047_576,
+            output_reserve: 32_000,
+            tokenizer: TokenizerFamily::OpenAiO200k,
+        };
+        let trigger = compact_trigger_threshold(&spec);
+        let capacity = usable_window(&spec); // ~1,015,576
+        let expected_ratio = ((capacity as f64) * 0.85) as usize;
+        assert_eq!(trigger, expected_ratio, "huge window: ratio (0.85) should win");
+    }
 }
