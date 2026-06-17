@@ -40,14 +40,17 @@ data-studio-agent/
 
 ## Quick Start
 
-### 1. Add as Dependency
-
-In your Tauri app's `Cargo.toml`:
+### Add as dependency
 
 ```toml
 [dependencies]
-data-studio-agent-lib = { path = "../data-studio-agent/crates/agent-lib" }
-data-studio-agent-storage-sqlite = { path = "../data-studio-agent/crates/storage-sqlite" }
+data-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v0.1.0" }
+```
+
+Or during local development:
+
+```toml
+data-studio-agent = { path = "../data-studio-agent" }
 ```
 
 ### 2. Initialize the Database

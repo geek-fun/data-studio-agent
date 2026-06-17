@@ -6,21 +6,19 @@ How to add the shared agent library to a new (or existing) Tauri application.
 
 - Rust edition 2021
 - Tauri v2
-- The `data-studio-agent` workspace checked out locally (or published as a crate)
 
-## Step 1: Add Dependencies
-
-In your Tauri app's `src-tauri/Cargo.toml`:
+## Step 1: Add Dependency
 
 ```toml
+# Production — pinned to a release tag
 [dependencies]
-# Core agent framework
-data-studio-agent-lib = { path = "../../data-studio-agent/crates/agent-lib" }
-# SQLite-backed persistence (optional — bring your own SessionStore if preferred)
-data-studio-agent-storage-sqlite = { path = "../../data-studio-agent/crates/storage-sqlite" }
+data-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v0.1.0" }
+```
 
-# Remove these if they were only used by the old duplicated agent code:
-# async-openai, tiktoken-rs
+During local development:
+
+```toml
+data-studio-agent = { path = "../../data-studio-agent" }
 ```
 
 ## Step 2: Initialize the Database
