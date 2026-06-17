@@ -1,6 +1,26 @@
-[workspace]
-resolver = "2"
-members = [
-    "crates/agent-lib",
-    "crates/storage-sqlite",
-]
+[package]
+name = "data-studio-agent"
+version = "0.1.0"
+edition = "2021"
+description = "Shared AI agent framework for database studio apps — LLM provider adapters, ReAct agent loop, context compaction, tool calling"
+license = "Apache-2.0"
+repository = "https://github.com/geekfun/data-studio-agent"
+
+[dependencies]
+async-openai = { version = "0.32", features = ["chat-completion"] }
+async-trait = "0.1"
+futures = "0.3"
+rand = "0.8"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tiktoken-rs = "0.7"
+tokio = { version = "1", features = ["sync", "time", "rt"] }
+uuid = { version = "1", features = ["v4"] }
+
+# SQLite storage backend (default on, opt out with default-features = false)
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+
+[features]
+default = ["sqlite-storage"]
+sqlite-storage = ["rusqlite"]

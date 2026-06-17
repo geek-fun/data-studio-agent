@@ -13,6 +13,9 @@ pub mod tools;
 pub mod traits;
 pub mod loop_runner;
 
+#[cfg(feature = "sqlite-storage")]
+pub mod storage;
+
 // Re-exports for convenience
 pub use chat_formatter::ChatFormatter;
 pub use provider_adapter::{build_headers, get_base_url, map_to_api_compatibility};

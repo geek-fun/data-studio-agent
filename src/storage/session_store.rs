@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use data_studio_agent_lib::traits::{SessionStore, StoredMessage};
+use crate::traits::{SessionStore, StoredMessage};
+use crate::storage::db::AgentDb;
 use tokio::sync::Mutex as AsyncMutex;
-
-use crate::db::AgentDb;
 
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -251,6 +250,6 @@ impl SessionStore for SqliteSessionStore {
     fn compact_lock(&self, session_id: &str) -> Arc<AsyncMutex<()>> {
         // Unified with conversation::lock_for() — single source of truth
         // prevents race between manual compact, in-loop compact, and background compact.
-        data_studio_agent_lib::conversation::lock_for(session_id)
+        crate::conversation::lock_for(session_id)
     }
 }
