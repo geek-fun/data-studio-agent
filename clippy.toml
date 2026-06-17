@@ -7,7 +7,7 @@ allow-dbg-in-tests = true
 cognitive-complexity-threshold = 30
 
 # Too many arguments is expected for Tauri command wrappers
-too-many-arguments-threshold = 10
+too-many-arguments-threshold = 12
 
 # Allow the async_trait pattern for trait methods returning impl Future
 # (required by the SessionStore async trait pattern)
