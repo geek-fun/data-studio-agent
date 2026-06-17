@@ -75,7 +75,12 @@ pub async fn run_agent_step(
     let api_compat = provider_adapter::map_to_api_compatibility(&provider);
     if api_compat == "anthropic" {
         return run_anthropic_stream(
-            &model, &messages, &http_proxy, &proxy_mode, &api_key, &normalized_base_url,
+            &model,
+            &messages,
+            &http_proxy,
+            &proxy_mode,
+            &api_key,
+            &normalized_base_url,
         )
         .await;
     }
@@ -83,8 +88,16 @@ pub async fn run_agent_step(
     // -----------------------------------------------------------------------
     // OpenAI-compatible path via async-openai
     // -----------------------------------------------------------------------
-    run_openai_stream(&model, messages, tools, &http_proxy, &proxy_mode, &api_key, &normalized_base_url)
-        .await
+    run_openai_stream(
+        &model,
+        messages,
+        tools,
+        &http_proxy,
+        &proxy_mode,
+        &api_key,
+        &normalized_base_url,
+    )
+    .await
 }
 
 /// Anthropic SSE streaming path (raw HTTP, no SDK dependency).
@@ -103,11 +116,7 @@ async fn run_anthropic_stream(
         None,
     );
 
-    let anthropic_url = format!(
-        "{}{}",
-        normalized_base_url.trim_end_matches('/'),
-        "/messages"
-    );
+    let anthropic_url = format!("{}{}", normalized_base_url.trim_end_matches('/'), "/messages");
 
     // Build Anthropic request body — filter system messages out of the
     // messages array (Anthropic API rejects role="system") and use the
@@ -172,10 +181,8 @@ async fn run_anthropic_stream(
 
                 let v: Value = serde_json::from_str(data).unwrap_or(json!({}));
                 if v.get("type").and_then(|t| t.as_str()) == Some("content_block_delta") {
-                    if let Some(text) = v
-                        .get("delta")
-                        .and_then(|d| d.get("text"))
-                        .and_then(|t| t.as_str())
+                    if let Some(text) =
+                        v.get("delta").and_then(|d| d.get("text")).and_then(|t| t.as_str())
                     {
                         full_content.push_str(text);
                     }
@@ -201,9 +208,7 @@ async fn run_openai_stream(
     api_key: &str,
     normalized_base_url: &str,
 ) -> Result<Value, String> {
-    let config = OpenAIConfig::new()
-        .with_api_key(api_key)
-        .with_api_base(normalized_base_url);
+    let config = OpenAIConfig::new().with_api_key(api_key).with_api_base(normalized_base_url);
     let http_client = create_http_client(
         proxy_mode.as_deref().unwrap_or("system"),
         http_proxy.clone(),
@@ -281,13 +286,10 @@ async fn run_openai_stream(
                         };
                     }
                 }
-            }
+            },
             Err(e) => {
-                return Err(sanitize_error(
-                    format!("Stream error: {}", e),
-                    api_key,
-                ));
-            }
+                return Err(sanitize_error(format!("Stream error: {}", e), api_key));
+            },
         }
     }
 
@@ -337,11 +339,7 @@ pub async fn validate_llm_config(
 
     // Local providers (Ollama) use native API for validation
     if api_compatibility == "local" {
-        let url = provider_adapter::get_native_api_url(
-            "OLLAMA",
-            &normalized_base_url,
-            "api/tags",
-        );
+        let url = provider_adapter::get_native_api_url("OLLAMA", &normalized_base_url, "api/tags");
         let response = http_client
             .get(&url)
             .send()
@@ -351,32 +349,21 @@ pub async fn validate_llm_config(
         if status.is_success() {
             return Ok(true);
         }
-        return Err(format!(
-            "HTTP {} — verify Ollama is running.",
-            status.as_u16()
-        ));
+        return Err(format!("HTTP {} — verify Ollama is running.", status.as_u16()));
     }
 
     // All openai-compatible and anthropic providers: validate via /v1/models
     let url = format!("{}/models", normalized_base_url);
 
-    let request = http_client
-        .get(&url)
-        .headers(provider_adapter::build_headers(&settings)?);
+    let request = http_client.get(&url).headers(provider_adapter::build_headers(&settings)?);
 
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("Validation request failed: {}", e))?;
+    let response = request.send().await.map_err(|e| format!("Validation request failed: {}", e))?;
 
     let status = response.status();
     if status.is_success() {
         Ok(true)
     } else {
-        Err(format!(
-            "HTTP {} — verify your API key and provider settings.",
-            status.as_u16()
-        ))
+        Err(format!("HTTP {} — verify your API key and provider settings.", status.as_u16()))
     }
 }
 
@@ -410,39 +397,23 @@ pub async fn list_llm_models(
             provider_adapter::get_native_api_url("OLLAMA", &normalized_base_url, "api/tags"),
             false,
         ),
-        _ => (
-            format!("{}/models", normalized_base_url),
-            !api_key.is_empty(),
-        ),
+        _ => (format!("{}/models", normalized_base_url), !api_key.is_empty()),
     };
 
     let request = if requires_auth {
-        http_client
-            .get(&url)
-            .headers(provider_adapter::build_headers(&settings)?)
+        http_client.get(&url).headers(provider_adapter::build_headers(&settings)?)
     } else {
         http_client.get(&url)
     };
 
-    let response = request
-        .send()
-        .await
-        .map_err(|e| format!("Failed to list models: {}", e))?;
+    let response = request.send().await.map_err(|e| format!("Failed to list models: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "Failed to list models: HTTP {}",
-            response.status()
-        ));
+        return Err(format!("Failed to list models: HTTP {}", response.status()));
     }
 
-    let payload: Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse models response: {}", e))?;
+    let payload: Value =
+        response.json().await.map_err(|e| format!("Failed to parse models response: {}", e))?;
 
-    Ok(provider_adapter::extract_model_ids(
-        api_compatibility,
-        &payload,
-    ))
+    Ok(provider_adapter::extract_model_ids(api_compatibility, &payload))
 }

@@ -44,7 +44,11 @@ pub trait CapabilityHandler: Send + Sync {
     ///
     /// `args` — JSON arguments matching the capability's `input_schema`.
     /// `connection_config` — optional connection configuration.
-    async fn handle(&self, args: &Value, connection_config: Option<&Value>) -> Result<String, String>;
+    async fn handle(
+        &self,
+        args: &Value,
+        connection_config: Option<&Value>,
+    ) -> Result<String, String>;
 }
 
 /// A registered capability — the single definition of an operation

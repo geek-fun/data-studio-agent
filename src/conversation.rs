@@ -38,16 +38,12 @@ fn inflight_set() -> &'static Mutex<HashSet<String>> {
 }
 
 fn try_acquire_inflight(session_id: &str) -> bool {
-    let mut set = inflight_set()
-        .lock()
-        .expect("compact inflight set poisoned");
+    let mut set = inflight_set().lock().expect("compact inflight set poisoned");
     set.insert(session_id.to_string())
 }
 
 fn release_inflight(session_id: &str) {
-    let mut set = inflight_set()
-        .lock()
-        .expect("compact inflight set poisoned");
+    let mut set = inflight_set().lock().expect("compact inflight set poisoned");
     set.remove(session_id);
 }
 
@@ -59,9 +55,7 @@ fn release_inflight(session_id: &str) {
 pub fn lock_for(session_id: &str) -> Arc<AsyncMutex<()>> {
     let map_mu = SESSION_COMPACT_LOCKS.get_or_init(|| Mutex::new(HashMap::new()));
     let mut map = map_mu.lock().expect("compact lock map poisoned");
-    map.entry(session_id.to_string())
-        .or_insert_with(|| Arc::new(AsyncMutex::new(())))
-        .clone()
+    map.entry(session_id.to_string()).or_insert_with(|| Arc::new(AsyncMutex::new(()))).clone()
 }
 
 // ---------------------------------------------------------------------------
@@ -89,10 +83,7 @@ impl Drop for InflightGuard {
 // ---------------------------------------------------------------------------
 
 fn auto_compact_enabled(settings: &Value) -> bool {
-    settings
-        .get("autoCompact")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(true)
+    settings.get("autoCompact").and_then(|v| v.as_bool()).unwrap_or(true)
 }
 
 fn is_tool_heavy_compaction_warning(message: &str) -> bool {
@@ -153,9 +144,7 @@ fn is_compact_boundary(msg: &StoredMessage) -> bool {
 fn has_compactable_content_since_boundary(messages: &[StoredMessage]) -> bool {
     let last_boundary_idx = messages.iter().rposition(is_compact_boundary);
     let start = last_boundary_idx.map(|i| i + 1).unwrap_or(0);
-    messages[start..]
-        .iter()
-        .any(|m| matches!(m.role.as_str(), "user" | "assistant" | "tool"))
+    messages[start..].iter().any(|m| matches!(m.role.as_str(), "user" | "assistant" | "tool"))
 }
 
 // ---------------------------------------------------------------------------
@@ -167,11 +156,7 @@ fn has_compactable_content_since_boundary(messages: &[StoredMessage]) -> bool {
 ///
 /// Returns `false` if the session has no compactable content since the last
 /// boundary, or if the store call fails.
-pub async fn needs_compact<S: SessionStore>(
-    store: &S,
-    session_id: &str,
-    settings: &Value,
-) -> bool {
+pub async fn needs_compact<S: SessionStore>(store: &S, session_id: &str, settings: &Value) -> bool {
     let Ok(messages) = store.load_messages_for_compact(session_id).await else {
         return false;
     };
@@ -218,22 +203,17 @@ pub async fn append<S: SessionStore + 'static, E: EventEmitter + 'static>(
     let has_pending_tool_calls = role == "assistant"
         && serde_json::from_str::<Value>(content)
             .ok()
-            .and_then(|v| {
-                v.get("tool_calls")
-                    .and_then(|tc| tc.as_array())
-                    .map(|a| !a.is_empty())
-            })
+            .and_then(|v| v.get("tool_calls").and_then(|tc| tc.as_array()).map(|a| !a.is_empty()))
             .unwrap_or(false);
 
-    if !has_pending_tool_calls && auto_compact_enabled(settings)
-        && try_acquire_inflight(session_id)
+    if !has_pending_tool_calls && auto_compact_enabled(settings) && try_acquire_inflight(session_id)
     {
         spawn_background_compact(
-                store.clone(),
-                emitter.clone(),
-                settings.clone(),
-                session_id.to_string(),
-            );
+            store.clone(),
+            emitter.clone(),
+            settings.clone(),
+            session_id.to_string(),
+        );
     }
 
     Ok(())
@@ -279,8 +259,8 @@ pub async fn prepare_for_llm<S: SessionStore, E: EventEmitter>(
                     summary_payload["fallback_keep_pairs"] = json!(fallback_keep_pairs);
                 }
                 emitter.emit("agent-loop-summary-injected", summary_payload);
-            }
-            Ok(None) => {}
+            },
+            Ok(None) => {},
             Err(compact_err) => {
                 if !is_tool_heavy_compaction_warning(&compact_err) {
                     emitter.emit(
@@ -291,7 +271,7 @@ pub async fn prepare_for_llm<S: SessionStore, E: EventEmitter>(
                         }),
                     );
                 }
-            }
+            },
         }
     }
 
@@ -323,8 +303,7 @@ fn spawn_background_compact<S: SessionStore + 'static, E: EventEmitter + 'static
             return;
         }
 
-        let result =
-            run_compact_with_events(&session_id, &settings, &*store, &*emitter).await;
+        let result = run_compact_with_events(&session_id, &settings, &*store, &*emitter).await;
 
         match result {
             Ok(Some(info)) => {
@@ -340,8 +319,8 @@ fn spawn_background_compact<S: SessionStore + 'static, E: EventEmitter + 'static
                 }
                 emitter.emit("agent-loop-summary-injected", summary_payload);
                 emit_usage(&*store, &*emitter, &session_id, &settings).await;
-            }
-            Ok(None) => {}
+            },
+            Ok(None) => {},
             Err(compact_err) => {
                 if !is_tool_heavy_compaction_warning(&compact_err) {
                     emitter.emit(
@@ -352,7 +331,7 @@ fn spawn_background_compact<S: SessionStore + 'static, E: EventEmitter + 'static
                         }),
                     );
                 }
-            }
+            },
         }
     });
 }

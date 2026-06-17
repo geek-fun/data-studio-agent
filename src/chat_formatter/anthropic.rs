@@ -37,12 +37,11 @@ impl ChatFormatter for AnthropicChatFormatter {
                         "role": "user",
                         "content": [{"type": "text", "text": msg.text_content}]
                     }));
-                }
+                },
                 "assistant" => {
                     let mut content: Vec<Value> = vec![];
                     if !msg.text_content.is_empty() {
-                        content
-                            .push(json!({"type": "text", "text": msg.text_content}));
+                        content.push(json!({"type": "text", "text": msg.text_content}));
                     }
                     if let Some(ref tool_calls) = msg.tool_calls {
                         for tc in tool_calls {
@@ -57,7 +56,7 @@ impl ChatFormatter for AnthropicChatFormatter {
                         }
                     }
                     anthropic_msgs.push(json!({"role": "assistant", "content": content}));
-                }
+                },
                 "tool" => {
                     anthropic_msgs.push(json!({
                         "role": "user",
@@ -67,13 +66,13 @@ impl ChatFormatter for AnthropicChatFormatter {
                             "content": msg.text_content
                         }]
                     }));
-                }
+                },
                 _ => {
                     anthropic_msgs.push(json!({
                         "role": msg.role,
                         "content": [{"type": "text", "text": msg.text_content}]
                     }));
-                }
+                },
             }
         }
         let mut body = json!({
@@ -87,11 +86,7 @@ impl ChatFormatter for AnthropicChatFormatter {
             body["system"] = Value::String(system_text);
         }
         if let Some(t) = tools {
-            if t.is_array()
-                && !t.as_array()
-                    .map(|a| a.is_empty())
-                    .unwrap_or(true)
-            {
+            if t.is_array() && !t.as_array().map(|a| a.is_empty()).unwrap_or(true) {
                 let formatted: Vec<Value> = t
                     .as_array()
                     .unwrap()
@@ -125,46 +120,25 @@ impl ChatFormatter for AnthropicChatFormatter {
             });
         }
         let raw = data.strip_prefix("data: ").unwrap_or(data);
-        let v: Value = serde_json::from_str(raw)
-            .map_err(|e| format!("JSON parse error: {}", e))?;
-        let event_type = v
-            .get("type")
-            .and_then(|t| t.as_str())
-            .unwrap_or("");
+        let v: Value = serde_json::from_str(raw).map_err(|e| format!("JSON parse error: {}", e))?;
+        let event_type = v.get("type").and_then(|t| t.as_str()).unwrap_or("");
         match event_type {
             "content_block_delta" => {
                 let delta = v.get("delta").ok_or("no delta")?;
-                let text = delta
-                    .get("text")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("")
-                    .to_string();
+                let text = delta.get("text").and_then(|t| t.as_str()).unwrap_or("").to_string();
                 Ok(StreamDelta {
                     content_delta: text,
                     thinking_delta: String::new(),
                     tool_call_deltas: vec![],
                     finish_reason: None,
                 })
-            }
+            },
             "content_block_start" => {
-                let block = v
-                    .get("content_block")
-                    .ok_or("no content_block")?;
+                let block = v.get("content_block").ok_or("no content_block")?;
                 if block.get("type").and_then(|t| t.as_str()) == Some("tool_use") {
-                    let idx = v
-                        .get("index")
-                        .and_then(|i| i.as_u64())
-                        .unwrap_or(0) as usize;
-                    let id = block
-                        .get("id")
-                        .and_then(|x| x.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    let name = block
-                        .get("name")
-                        .and_then(|x| x.as_str())
-                        .unwrap_or("")
-                        .to_string();
+                    let idx = v.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
+                    let id = block.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
+                    let name = block.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string();
                     Ok(StreamDelta {
                         content_delta: String::new(),
                         thinking_delta: String::new(),
@@ -179,7 +153,7 @@ impl ChatFormatter for AnthropicChatFormatter {
                 } else {
                     Ok(StreamDelta::default())
                 }
-            }
+            },
             "input_json_delta" => {
                 let partial = v
                     .get("delta")
@@ -187,10 +161,7 @@ impl ChatFormatter for AnthropicChatFormatter {
                     .and_then(|p| p.as_str())
                     .unwrap_or("")
                     .to_string();
-                let idx = v
-                    .get("index")
-                    .and_then(|i| i.as_u64())
-                    .unwrap_or(0) as usize;
+                let idx = v.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
                 Ok(StreamDelta {
                     content_delta: String::new(),
                     thinking_delta: String::new(),
@@ -202,7 +173,7 @@ impl ChatFormatter for AnthropicChatFormatter {
                     }],
                     finish_reason: None,
                 })
-            }
+            },
             "message_delta" => {
                 let stop = v
                     .get("delta")
@@ -215,7 +186,7 @@ impl ChatFormatter for AnthropicChatFormatter {
                     tool_call_deltas: vec![],
                     finish_reason: stop,
                 })
-            }
+            },
             "message_stop" => Ok(StreamDelta {
                 content_delta: String::new(),
                 thinking_delta: String::new(),
@@ -235,7 +206,7 @@ impl ChatFormatter for AnthropicChatFormatter {
                 } else {
                     Ok(StreamDelta::default())
                 }
-            }
+            },
         }
     }
 }
@@ -248,9 +219,13 @@ mod tests {
     #[test]
     fn test_build_request_system_user() {
         let f = AnthropicChatFormatter;
-        let msgs = vec![
-            LlmMessage { role: "user".into(), text_content: "Hello".into(), tool_calls: None, tool_call_id: None, thinking: None },
-        ];
+        let msgs = vec![LlmMessage {
+            role: "user".into(),
+            text_content: "Hello".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            thinking: None,
+        }];
         let body = f.build_request("claude-sonnet-4", Some("Be helpful."), &msgs, None, true);
         assert_eq!(body["model"], "claude-sonnet-4");
         assert_eq!(body["system"], "Be helpful.");
@@ -263,17 +238,17 @@ mod tests {
     #[test]
     fn test_build_request_tool_use() {
         let f = AnthropicChatFormatter;
-        let msgs = vec![
-            LlmMessage {
-                role: "assistant".into(),
-                text_content: "Using tool".into(),
-                tool_calls: Some(vec![
-                    LlmToolCall { id: "tu_1".into(), name: "get_weather".into(), arguments: r#"{"city":"Paris"}"#.into() },
-                ]),
-                tool_call_id: None,
-                thinking: None,
-            },
-        ];
+        let msgs = vec![LlmMessage {
+            role: "assistant".into(),
+            text_content: "Using tool".into(),
+            tool_calls: Some(vec![LlmToolCall {
+                id: "tu_1".into(),
+                name: "get_weather".into(),
+                arguments: r#"{"city":"Paris"}"#.into(),
+            }]),
+            tool_call_id: None,
+            thinking: None,
+        }];
         let body = f.build_request("claude-4", None, &msgs, None, true);
         let content = &body["messages"][0]["content"];
         assert_eq!(content[0]["type"], "text");
@@ -287,9 +262,13 @@ mod tests {
     #[test]
     fn test_build_request_tool_result() {
         let f = AnthropicChatFormatter;
-        let msgs = vec![
-            LlmMessage { role: "tool".into(), text_content: "Sunny 25C".into(), tool_calls: None, tool_call_id: Some("tu_1".into()), thinking: None },
-        ];
+        let msgs = vec![LlmMessage {
+            role: "tool".into(),
+            text_content: "Sunny 25C".into(),
+            tool_calls: None,
+            tool_call_id: Some("tu_1".into()),
+            thinking: None,
+        }];
         let body = f.build_request("claude-4", None, &msgs, None, true);
         let msg = &body["messages"][0];
         assert_eq!(msg["role"], "user");
@@ -301,9 +280,13 @@ mod tests {
     #[test]
     fn test_build_request_with_tools_param() {
         let f = AnthropicChatFormatter;
-        let msgs = vec![
-            LlmMessage { role: "user".into(), text_content: "Get weather".into(), tool_calls: None, tool_call_id: None, thinking: None },
-        ];
+        let msgs = vec![LlmMessage {
+            role: "user".into(),
+            text_content: "Get weather".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            thinking: None,
+        }];
         let tools = json!([{
             "type": "function",
             "function": { "name": "get_weather", "description": "Get weather", "parameters": {"type": "object", "properties": {"city": {"type": "string"}} } }
@@ -317,9 +300,13 @@ mod tests {
     #[test]
     fn test_build_request_no_system() {
         let f = AnthropicChatFormatter;
-        let msgs = vec![
-            LlmMessage { role: "user".into(), text_content: "Hi".into(), tool_calls: None, tool_call_id: None, thinking: None },
-        ];
+        let msgs = vec![LlmMessage {
+            role: "user".into(),
+            text_content: "Hi".into(),
+            tool_calls: None,
+            tool_call_id: None,
+            thinking: None,
+        }];
         let body = f.build_request("claude-4", None, &msgs, None, false);
         assert!(body.get("system").is_none());
         assert_eq!(body["messages"].as_array().unwrap().len(), 1);
@@ -355,7 +342,8 @@ mod tests {
     #[test]
     fn test_parse_chunk_message_delta() {
         let f = AnthropicChatFormatter;
-        let data = r#"{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null}}"#;
+        let data =
+            r#"{"type":"message_delta","delta":{"stop_reason":"end_turn","stop_sequence":null}}"#;
         let delta = f.parse_chunk(data).unwrap();
         assert_eq!(delta.finish_reason, Some("end_turn".into()));
     }

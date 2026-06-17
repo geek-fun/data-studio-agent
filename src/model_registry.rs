@@ -131,10 +131,7 @@ pub fn resolve_spec(provider: &str, model_id: &str) -> ModelSpec {
 
 pub fn apply_overrides(spec: ModelSpec, context_window_override: Option<usize>) -> ModelSpec {
     match context_window_override {
-        Some(w) if w >= 1_024 => ModelSpec {
-            context_window: w,
-            ..spec
-        },
+        Some(w) if w >= 1_024 => ModelSpec { context_window: w, ..spec },
         _ => spec,
     }
 }

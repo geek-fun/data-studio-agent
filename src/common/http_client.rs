@@ -12,9 +12,7 @@ fn get_proxy(http_proxy: Option<String>) -> Option<String> {
         .or_else(|| env::var("https_proxy").ok())
         .or_else(|| env::var("HTTP_PROXY").ok())
         .or_else(|| env::var("http_proxy").ok())
-        .or_else(|| {
-            env::var("all_proxy").ok().filter(|p| p.starts_with("http://"))
-        })
+        .or_else(|| env::var("all_proxy").ok().filter(|p| p.starts_with("http://")))
 }
 
 const CONNECT_TIMEOUT_SECS: u64 = 15;
@@ -40,14 +38,14 @@ pub fn create_http_client(
                 match reqwest::Proxy::all(&proxy_url) {
                     Ok(proxy) => {
                         builder = builder.proxy(proxy);
-                    }
+                    },
                     Err(e) => {
                         eprintln!("[agent-lib] Failed to configure proxy '{}': {}", proxy_url, e);
-                    }
+                    },
                 };
             }
-        }
-        "none" => {}
+        },
+        "none" => {},
         _ => {
             builder = reqwest::ClientBuilder::new()
                 .danger_accept_invalid_certs(!ssl.unwrap_or(true))
@@ -55,7 +53,7 @@ pub fn create_http_client(
             if let Some(duration) = request_timeout {
                 builder = builder.timeout(duration);
             }
-        }
+        },
     }
 
     builder.build().expect("Failed to build HTTP client")
@@ -96,7 +94,8 @@ mod tests {
 
     #[test]
     fn test_create_http_client_manual_proxy() {
-        let client = create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None);
+        let client =
+            create_http_client("manual", Some("http://proxy:8080".into()), Some(true), None);
         let _ = client;
     }
 

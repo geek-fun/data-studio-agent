@@ -107,10 +107,8 @@ pub fn normalize_base_url(url: &str) -> String {
 }
 
 pub fn get_base_url(settings: &Value) -> String {
-    let api_compatibility = settings
-        .get("apiCompatibility")
-        .and_then(|v| v.as_str())
-        .unwrap_or("openai-compatible");
+    let api_compatibility =
+        settings.get("apiCompatibility").and_then(|v| v.as_str()).unwrap_or("openai-compatible");
     let explicit = settings.get("baseUrl").and_then(|v| v.as_str());
 
     if let Some(url) = explicit {
@@ -123,14 +121,9 @@ pub fn get_base_url(settings: &Value) -> String {
 }
 
 pub fn build_headers(settings: &Value) -> Result<HeaderMap, String> {
-    let api_compatibility = settings
-        .get("apiCompatibility")
-        .and_then(|v| v.as_str())
-        .unwrap_or("openai-compatible");
-    let api_key = settings
-        .get("apiKey")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let api_compatibility =
+        settings.get("apiCompatibility").and_then(|v| v.as_str()).unwrap_or("openai-compatible");
+    let api_key = settings.get("apiKey").and_then(|v| v.as_str()).unwrap_or("");
 
     let config = endpoint_for(api_compatibility);
     let mut headers = HeaderMap::new();
@@ -154,7 +147,9 @@ pub fn build_headers(settings: &Value) -> Result<HeaderMap, String> {
 pub fn map_to_api_compatibility(provider: &str) -> &'static str {
     match provider {
         "OLLAMA" => "local",
-        "openai-compatible" | "OPENAI" | "DEEP_SEEK" | "OPENROUTER" | "LM_STUDIO" => "openai-compatible",
+        "openai-compatible" | "OPENAI" | "DEEP_SEEK" | "OPENROUTER" | "LM_STUDIO" => {
+            "openai-compatible"
+        },
         "custom-anthropic" | "anthropic" | "ANTHROPIC" => "anthropic",
         "local" => "local",
         _ => "openai-compatible",
@@ -174,10 +169,7 @@ pub fn extract_model_ids(api_compatibility: &str, payload: &Value) -> Vec<String
                 models
                     .iter()
                     .filter_map(|model| {
-                        model
-                            .get("key")
-                            .and_then(|v| v.as_str())
-                            .map(|v| v.to_string())
+                        model.get("key").and_then(|v| v.as_str()).map(|v| v.to_string())
                     })
                     .collect()
             })

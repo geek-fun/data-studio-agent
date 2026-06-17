@@ -66,19 +66,12 @@ fn new_id() -> String {
 
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;
-const RETRYABLE_ERROR_TYPES: &[&str] = &[
-    "rate_limit_exceeded",
-    "insufficient_quota",
-    "service_unavailable",
-    "overloaded_error",
-];
+const RETRYABLE_ERROR_TYPES: &[&str] =
+    &["rate_limit_exceeded", "insufficient_quota", "service_unavailable", "overloaded_error"];
 
 fn classify_error(body: &str) -> Option<String> {
     let v: Value = serde_json::from_str(body).ok()?;
-    v.get("error")
-        .and_then(|e| e.get("type"))
-        .and_then(|t| t.as_str())
-        .map(|s| s.to_string())
+    v.get("error").and_then(|e| e.get("type")).and_then(|t| t.as_str()).map(|s| s.to_string())
 }
 
 fn is_retryable(err_type: &str) -> bool {
@@ -86,8 +79,7 @@ fn is_retryable(err_type: &str) -> bool {
 }
 
 async fn jittered_sleep_ms(base_ms: u64) {
-    let jitter =
-        rand::thread_rng().gen_range(-(RETRY_JITTER_MS as i64)..=RETRY_JITTER_MS as i64);
+    let jitter = rand::thread_rng().gen_range(-(RETRY_JITTER_MS as i64)..=RETRY_JITTER_MS as i64);
     let delay = (base_ms as i64 + jitter).max(0) as u64;
     tokio::time::sleep(Duration::from_millis(delay)).await;
 }
@@ -103,12 +95,7 @@ pub async fn post_chat_completions_compact(
     let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
     let mut last_err = String::from("LLM request failed");
     for (attempt, &delay) in RETRY_DELAYS_MS.iter().enumerate() {
-        let resp = http_client
-            .post(&url)
-            .headers(headers.clone())
-            .json(&body)
-            .send()
-            .await;
+        let resp = http_client.post(&url).headers(headers.clone()).json(&body).send().await;
         match resp {
             Ok(r) => {
                 if r.status().is_success() {
@@ -123,13 +110,13 @@ pub async fn post_chat_completions_compact(
                 if !retryable || attempt >= RETRY_DELAYS_MS.len() {
                     return Err(last_err);
                 }
-            }
+            },
             Err(e) => {
                 last_err = format!("LLM request error: {}", e);
                 if attempt >= RETRY_DELAYS_MS.len() {
                     return Err(last_err);
                 }
-            }
+            },
         }
         jittered_sleep_ms(delay).await;
     }
@@ -152,17 +139,11 @@ pub fn compact_trigger_threshold(capacity: usize) -> usize {
 /// Evaluate whether the message list has crossed the compaction trigger
 /// threshold for the given model spec.
 pub fn evaluate(messages: &[StoredMessage], spec: &ModelSpec) -> CompactDecision {
-    let used: usize = messages
-        .iter()
-        .map(|m| estimate_stored_message(&m.role, &m.content, spec))
-        .sum();
+    let used: usize =
+        messages.iter().map(|m| estimate_stored_message(&m.role, &m.content, spec)).sum();
     let capacity = usable_window(spec);
     let trigger_at = compact_trigger_threshold(capacity);
-    CompactDecision {
-        capacity,
-        trigger_at,
-        should_compact: used >= trigger_at,
-    }
+    CompactDecision { capacity, trigger_at, should_compact: used >= trigger_at }
 }
 
 /// Estimate total tokens for the given message list including system prompt
@@ -188,18 +169,10 @@ pub fn count_projected_tokens(
 }
 
 pub fn resolve_model_spec(settings: &Value) -> ModelSpec {
-    let provider = settings
-        .get("provider")
-        .and_then(|v| v.as_str())
-        .unwrap_or("OPEN_AI");
-    let model = settings
-        .get("model")
-        .and_then(|v| v.as_str())
-        .unwrap_or("gpt-4o-mini");
-    let override_window = settings
-        .get("contextWindowOverride")
-        .and_then(|v| v.as_u64())
-        .map(|n| n as usize);
+    let provider = settings.get("provider").and_then(|v| v.as_str()).unwrap_or("OPEN_AI");
+    let model = settings.get("model").and_then(|v| v.as_str()).unwrap_or("gpt-4o-mini");
+    let override_window =
+        settings.get("contextWindowOverride").and_then(|v| v.as_u64()).map(|n| n as usize);
     apply_overrides(resolve_spec(provider, model), override_window)
 }
 
@@ -213,8 +186,7 @@ pub fn resolve_model_spec(settings: &Value) -> ModelSpec {
 /// context-usage percentage from jumping when the model picker is changed
 /// or when settings are partially reloaded, which previously produced the
 /// observed 62% -> 60% regression mid-loop.
-static SESSION_TOKENIZER_CACHE: OnceLock<Mutex<HashMap<String, TokenizerFamily>>> =
-    OnceLock::new();
+static SESSION_TOKENIZER_CACHE: OnceLock<Mutex<HashMap<String, TokenizerFamily>>> = OnceLock::new();
 
 pub fn resolve_model_spec_for_session(session_id: &str, settings: &Value) -> ModelSpec {
     let mut spec = resolve_model_spec(settings);
@@ -223,10 +195,10 @@ pub fn resolve_model_spec_for_session(session_id: &str, settings: &Value) -> Mod
     match map.get(session_id) {
         Some(locked) => {
             spec.tokenizer = *locked;
-        }
+        },
         None => {
             map.insert(session_id.to_string(), spec.tokenizer);
-        }
+        },
     }
     spec
 }
@@ -270,9 +242,7 @@ pub fn safe_split_index(messages: &[StoredMessage], proposed_split: usize) -> us
 /// messages.
 pub fn safe_split_index_forward(messages: &[StoredMessage], proposed_split: usize) -> usize {
     let start = proposed_split.min(messages.len());
-    (start..=messages.len())
-        .find(|split| is_safe_boundary(messages, *split))
-        .unwrap_or(0)
+    (start..=messages.len()).find(|split| is_safe_boundary(messages, *split)).unwrap_or(0)
 }
 
 /// Compute a target split that keeps the last N user/assistant pairs intact.
@@ -293,7 +263,8 @@ pub fn target_split_keeping_pairs(messages: &[StoredMessage], keep_pairs: usize)
 // LLM summarization
 // ---------------------------------------------------------------------------
 
-pub const COMPACT_SYSTEM_PROMPT: &str = "Summarize this conversation so it can continue without the full history.
+pub const COMPACT_SYSTEM_PROMPT: &str =
+    "Summarize this conversation so it can continue without the full history.
 
 Output exactly this Markdown structure, keeping all sections even if empty:
 
@@ -324,10 +295,7 @@ pub async fn summarize_with_llm(
         .collect();
 
     let formatter = OpenAIChatFormatter;
-    let model = settings
-        .get("model")
-        .and_then(|v| v.as_str())
-        .unwrap_or("gpt-4o-mini");
+    let model = settings.get("model").and_then(|v| v.as_str()).unwrap_or("gpt-4o-mini");
     let user_msg_text = serde_json::to_string(&chat_msgs).unwrap_or_default();
     let llm_messages = vec![LlmMessage {
         role: "user".into(),
@@ -341,14 +309,8 @@ pub async fn summarize_with_llm(
 
     let base_url = get_base_url(settings);
     let headers = build_headers(settings)?;
-    let http_proxy = settings
-        .get("httpProxy")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-    let proxy_mode = settings
-        .get("proxyMode")
-        .and_then(|v| v.as_str())
-        .unwrap_or("system");
+    let http_proxy = settings.get("httpProxy").and_then(|v| v.as_str()).map(|s| s.to_string());
+    let proxy_mode = settings.get("proxyMode").and_then(|v| v.as_str()).unwrap_or("system");
     let http_client = create_http_client(proxy_mode, http_proxy, None, None);
 
     let resp = post_chat_completions_compact(&http_client, &base_url, headers, body).await?;
@@ -403,9 +365,7 @@ async fn insert_compact_boundary<S: SessionStore>(
     _removed_ids: &[String],
     boundary_payload: &str,
 ) -> Result<(), String> {
-    store
-        .write_message(&new_id(), session_id, "system", boundary_payload)
-        .await?;
+    store.write_message(&new_id(), session_id, "system", boundary_payload).await?;
 
     Ok(())
 }
@@ -476,14 +436,10 @@ async fn run_compact_inner<S: SessionStore, E: EventEmitter>(
     }
 
     let to_summarize = &messages[..split];
-    let pre_tokens: usize = to_summarize
-        .iter()
-        .map(|m| estimate_stored_message(&m.role, &m.content, &spec))
-        .sum();
-    let post_tokens: usize = messages[split..]
-        .iter()
-        .map(|m| estimate_stored_message(&m.role, &m.content, &spec))
-        .sum();
+    let pre_tokens: usize =
+        to_summarize.iter().map(|m| estimate_stored_message(&m.role, &m.content, &spec)).sum();
+    let post_tokens: usize =
+        messages[split..].iter().map(|m| estimate_stored_message(&m.role, &m.content, &spec)).sum();
 
     if let Some(emitter) = emitter {
         emitter.emit(

@@ -126,16 +126,10 @@ pub fn migrate(db: &AgentDb) -> Result<(), String> {
 /// Reset stuck sessions (status="running" → "idle") on startup recovery.
 pub fn recover_stuck_sessions(conn: &rusqlite::Connection) -> Result<(), String> {
     let changed = conn
-        .execute(
-            "UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'",
-            [],
-        )
+        .execute("UPDATE agent_sessions SET status = 'idle' WHERE status = 'running'", [])
         .map_err(|e| e.to_string())?;
     if changed > 0 {
-        eprintln!(
-            "[db] Reset {} stuck agent session(s) from 'running' to 'idle'",
-            changed
-        );
+        eprintln!("[db] Reset {} stuck agent session(s) from 'running' to 'idle'", changed);
     }
     Ok(())
 }

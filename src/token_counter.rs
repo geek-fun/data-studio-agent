@@ -33,18 +33,12 @@ fn count_text(text: &str, family: TokenizerFamily) -> usize {
 
 pub fn count_chat_messages(messages: &[Value], spec: &ModelSpec) -> usize {
     let family = spec.tokenizer;
-    let body_total: usize = messages
-        .iter()
-        .map(|m| count_single_message(m, family))
-        .sum();
+    let body_total: usize = messages.iter().map(|m| count_single_message(m, family)).sum();
     body_total + PER_REPLY_OVERHEAD
 }
 
 fn count_single_message(message: &Value, family: TokenizerFamily) -> usize {
-    let role = message
-        .get("role")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let role = message.get("role").and_then(|v| v.as_str()).unwrap_or("");
     let mut total = PER_MESSAGE_OVERHEAD + count_text(role, family);
 
     if let Some(content) = message.get("content") {
@@ -75,10 +69,7 @@ fn count_value_text(value: &Value, family: TokenizerFamily) -> usize {
     match value {
         Value::String(s) => count_text(s, family),
         Value::Null => 0,
-        Value::Array(items) => items
-            .iter()
-            .map(|v| count_value_text(v, family))
-            .sum(),
+        Value::Array(items) => items.iter().map(|v| count_value_text(v, family)).sum(),
         Value::Object(_) => count_text(&value.to_string(), family),
         other => count_text(&other.to_string(), family),
     }

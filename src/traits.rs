@@ -48,10 +48,17 @@ pub trait SessionStore: Send + Sync {
     async fn update_tool_call_status(&self, id: &str, status: &str) -> Result<(), String>;
 
     /// Insert tool execution result; returns the result row id.
-    async fn insert_tool_result(&self, tool_call_id: &str, full_result: &str) -> Result<String, String>;
+    async fn insert_tool_result(
+        &self,
+        tool_call_id: &str,
+        full_result: &str,
+    ) -> Result<String, String>;
 
     /// Load messages from the last compaction boundary for compaction evaluation.
-    async fn load_messages_for_compact(&self, session_id: &str) -> Result<Vec<StoredMessage>, String>;
+    async fn load_messages_for_compact(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<StoredMessage>, String>;
 
     /// Load ALL messages for the session (ignoring compaction boundaries).
     async fn load_all_messages(&self, session_id: &str) -> Result<Vec<StoredMessage>, String>;

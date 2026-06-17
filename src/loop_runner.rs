@@ -19,7 +19,9 @@ use crate::chat_formatter::{
     AnthropicChatFormatter, ChatFormatter, LlmMessage, LlmToolCall, OpenAIChatFormatter,
 };
 use crate::common::http_client::create_http_client;
-use crate::compact::{count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_manual};
+use crate::compact::{
+    count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_manual,
+};
 use crate::conversation::prepare_for_llm;
 use crate::loop_runner_support::new_id;
 use crate::provider_adapter::{build_headers, get_base_url};
@@ -38,16 +40,10 @@ const DEFAULT_TOKEN_BUDGET: usize = 20_000_000;
 const CONFIRM_TIMEOUT_SECS: u64 = 300;
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
 const RETRY_JITTER_MS: u64 = 250;
-const RETRYABLE_ERROR_TYPES: &[&str] = &[
-    "rate_limit_exceeded",
-    "service_unavailable",
-    "overloaded_error",
-];
-const FATAL_ERROR_TYPES: &[&str] = &[
-    "insufficient_quota",
-    "invalid_request_error",
-    "authentication_error",
-];
+const RETRYABLE_ERROR_TYPES: &[&str] =
+    &["rate_limit_exceeded", "service_unavailable", "overloaded_error"];
+const FATAL_ERROR_TYPES: &[&str] =
+    &["insufficient_quota", "invalid_request_error", "authentication_error"];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -68,10 +64,7 @@ fn settings_get_str<'a>(settings: &'a Value, key: &str) -> Option<&'a str> {
 
 fn classify_error(body: &str) -> Option<String> {
     let v: Value = serde_json::from_str(body).ok()?;
-    v.get("error")
-        .and_then(|e| e.get("type"))
-        .and_then(|t| t.as_str())
-        .map(|s| s.to_string())
+    v.get("error").and_then(|e| e.get("type")).and_then(|t| t.as_str()).map(|s| s.to_string())
 }
 
 fn is_retryable(err_type: &str) -> bool {
@@ -93,10 +86,7 @@ struct ConfirmGuard {
 
 impl ConfirmGuard {
     fn new(confirm_map: ConfirmMap, tool_call_id: String) -> Self {
-        Self {
-            confirm_map,
-            tool_call_id,
-        }
+        Self { confirm_map, tool_call_id }
     }
 }
 
@@ -160,13 +150,9 @@ pub fn build_llm_messages(
             }
             pending_tool_call_ids.clear();
             if let Ok(v) = serde_json::from_str::<Value>(content) {
-                if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some())
-                {
-                    let text_content = v
-                        .get("content")
-                        .and_then(|c| c.as_str())
-                        .unwrap_or("")
-                        .to_string();
+                if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some()) {
+                    let text_content =
+                        v.get("content").and_then(|c| c.as_str()).unwrap_or("").to_string();
                     let tool_calls = v.get("tool_calls").and_then(|tc| {
                         tc.as_array().map(|arr| {
                             arr.iter()
@@ -191,19 +177,13 @@ pub fn build_llm_messages(
                                     if !id.is_empty() {
                                         pending_tool_call_ids.insert(id.clone());
                                     }
-                                    LlmToolCall {
-                                        id,
-                                        name,
-                                        arguments: args,
-                                    }
+                                    LlmToolCall { id, name, arguments: args }
                                 })
                                 .collect()
                         })
                     });
-                    let thinking = v
-                        .get("thinking")
-                        .and_then(|t| t.as_str())
-                        .map(|s| s.to_string());
+                    let thinking =
+                        v.get("thinking").and_then(|t| t.as_str()).map(|s| s.to_string());
                     out.push(LlmMessage {
                         role: "assistant".into(),
                         text_content,
@@ -231,12 +211,8 @@ pub fn build_llm_messages(
             pending_tool_call_ids.clear();
             if role == "system" {
                 if let Ok(v) = serde_json::from_str::<Value>(content) {
-                    if v.get("_compact_boundary")
-                        .and_then(|x| x.as_bool())
-                        .unwrap_or(false)
-                    {
-                        let summary =
-                            v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
+                    if v.get("_compact_boundary").and_then(|x| x.as_bool()).unwrap_or(false) {
+                        let summary = v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
                         out.push(LlmMessage {
                             role: "system".into(),
                             text_content: summary.to_string(),
@@ -257,8 +233,7 @@ pub fn build_llm_messages(
             });
         }
     }
-    if !pending_tool_call_ids.is_empty()
-        && out.last().map(|m| m.role.as_str()) == Some("assistant")
+    if !pending_tool_call_ids.is_empty() && out.last().map(|m| m.role.as_str()) == Some("assistant")
     {
         out.pop();
     }
@@ -299,7 +274,7 @@ pub fn llm_messages_to_values(messages: &[LlmMessage]) -> Vec<Value> {
                     m["tool_calls"] = Value::Array(tc);
                 }
                 m
-            }
+            },
             _ => json!({"role": msg.role, "content": msg.text_content}),
         })
         .collect()
@@ -308,14 +283,9 @@ pub fn llm_messages_to_values(messages: &[LlmMessage]) -> Vec<Value> {
 /// Public wrapper that projects stored messages the same way as
 /// build_llm_messages. Used by count_projected_tokens for accurate
 /// token estimation that matches what the LLM actually receives.
-pub fn project_messages(
-    messages: &[StoredMessage],
-    system_prompt: Option<&str>,
-) -> Vec<Value> {
-    let tuples: Vec<(String, String, String)> = messages
-        .iter()
-        .map(|m| (m.id.clone(), m.role.clone(), m.content.clone()))
-        .collect();
+pub fn project_messages(messages: &[StoredMessage], system_prompt: Option<&str>) -> Vec<Value> {
+    let tuples: Vec<(String, String, String)> =
+        messages.iter().map(|m| (m.id.clone(), m.role.clone(), m.content.clone())).collect();
     let llm_msgs = build_llm_messages(&tuples, system_prompt);
     llm_messages_to_values(&llm_msgs)
 }
@@ -352,12 +322,7 @@ async fn stream_chat<E: EventEmitter>(
     let mut last_err = String::from("Stream failed");
 
     for (attempt, &delay) in RETRY_DELAYS_MS.iter().enumerate() {
-        let resp = http_client
-            .post(&url)
-            .headers(headers.clone())
-            .json(&body)
-            .send()
-            .await;
+        let resp = http_client.post(&url).headers(headers.clone()).json(&body).send().await;
         let resp = match resp {
             Ok(r) => r,
             Err(e) => {
@@ -367,7 +332,7 @@ async fn stream_chat<E: EventEmitter>(
                 }
                 jittered_sleep_ms(delay).await;
                 continue;
-            }
+            },
         };
 
         if !resp.status().is_success() {
@@ -461,12 +426,7 @@ async fn stream_chat<E: EventEmitter>(
 // emit_loop_stopped helper
 // ---------------------------------------------------------------------------
 
-fn emit_loop_stopped<E: EventEmitter>(
-    emitter: &E,
-    session_id: &str,
-    reason: &str,
-    message: &str,
-) {
+fn emit_loop_stopped<E: EventEmitter>(emitter: &E, session_id: &str, reason: &str, message: &str) {
     emitter.emit(
         "agent-loop-stopped",
         json!({
@@ -586,10 +546,7 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
     }
 
     if let Err(ref e) = result {
-        emitter.emit(
-            "agent-loop-error",
-            json!({"session_id": session_id, "error": e}),
-        );
+        emitter.emit("agent-loop-error", json!({"session_id": session_id, "error": e}));
     }
     result
 }
@@ -613,16 +570,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
     store.update_session_status(session_id, "running").await?;
 
     let user_id = new_id();
-    inline_append(
-        store,
-        emitter,
-        settings,
-        &user_id,
-        session_id,
-        "user",
-        user_message,
-    )
-    .await?;
+    inline_append(store, emitter, settings, &user_id, session_id, "user", user_message).await?;
 
     let system_prompt = settings_get_str(settings, "systemPrompt").map(|s| s.to_string());
 
@@ -638,9 +586,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         .map(|arr| {
             arr.iter()
                 .filter_map(|t| {
-                    t.get("function")
-                        .and_then(|f| f.get("name"))
-                        .and_then(|n| n.as_str())
+                    t.get("function").and_then(|f| f.get("name")).and_then(|n| n.as_str())
                 })
                 .map(str::to_string)
                 .collect()
@@ -725,10 +671,8 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
         let spec = resolve_model_spec_for_session(session_id, settings);
         let chat_msgs_values = llm_messages_to_values(&chat_msgs);
-        cumulative_input_tokens = cumulative_input_tokens.saturating_add(count_chat_messages(
-            &chat_msgs_values,
-            &spec,
-        ));
+        cumulative_input_tokens =
+            cumulative_input_tokens.saturating_add(count_chat_messages(&chat_msgs_values, &spec));
         if cumulative_input_tokens >= token_budget {
             emit_loop_stopped(
                 emitter,
@@ -791,11 +735,11 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                             emit_loop_stopped(emitter, session_id, "llm_error", &e);
                         }
                         return Ok(());
-                    }
+                    },
                 },
                 Either::Right((_, _)) => {
                     return Err("cancelled".to_string());
-                }
+                },
             }
         };
 
@@ -831,11 +775,8 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
 
         // Runaway-loop guard: if the LLM emits the same tool-call set 3x, stop.
         let iter_signature: String = {
-            let mut sigs: Vec<String> = acc
-                .tool_calls
-                .iter()
-                .map(|t| format!("{}:{}", t.name, t.arguments))
-                .collect();
+            let mut sigs: Vec<String> =
+                acc.tool_calls.iter().map(|t| format!("{}:{}", t.name, t.arguments)).collect();
             sigs.sort();
             sigs.join("|")
         };
@@ -857,23 +798,14 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 stuck_msg,
             )
             .await?;
-            emitter.emit(
-                "agent-loop-error",
-                json!({"session_id": session_id, "error": stuck_msg}),
-            );
+            emitter.emit("agent-loop-error", json!({"session_id": session_id, "error": stuck_msg}));
             return Ok(());
         }
 
         let resolved_tool_ids: Vec<String> = acc
             .tool_calls
             .iter()
-            .map(|t| {
-                if t.id.is_empty() {
-                    new_id()
-                } else {
-                    t.id.clone()
-                }
-            })
+            .map(|t| if t.id.is_empty() { new_id() } else { t.id.clone() })
             .collect();
 
         let tool_calls_json: Vec<Value> = acc
@@ -915,7 +847,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 Ok(v) => {
                     consecutive_parse_failures.remove(&tool_name);
                     v
-                }
+                },
                 Err(e) => {
                     store
                         .insert_tool_call(
@@ -984,7 +916,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                         return Ok(());
                     }
                     continue;
-                }
+                },
             };
 
             store
@@ -999,9 +931,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 .await?;
 
             if allowed_tools.is_empty() || !allowed_tools.contains(&tc.name) {
-                store
-                    .update_tool_call_status(&tool_call_id, "failed")
-                    .await?;
+                store.update_tool_call_status(&tool_call_id, "failed").await?;
                 let err_content = format!("Tool '{}' is not allowed in this session.", tool_name);
                 let deny_msg = json!({
                     "tool_call_id": tool_call_id,
@@ -1038,9 +968,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 Some(conn_id) => match connections.get(conn_id) {
                     Some(cfg) => cfg.clone(),
                     None => {
-                        store
-                            .update_tool_call_status(&tool_call_id, "failed")
-                            .await?;
+                        store.update_tool_call_status(&tool_call_id, "failed").await?;
                         let err_content = format!(
                             "Unknown connection_id '{}' for tool '{}'.",
                             conn_id, tool_name
@@ -1070,13 +998,11 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                             }),
                         );
                         continue;
-                    }
+                    },
                 },
                 None => {
                     if !connections.is_empty() {
-                        store
-                            .update_tool_call_status(&tool_call_id, "failed")
-                            .await?;
+                        store.update_tool_call_status(&tool_call_id, "failed").await?;
                         let err_content = format!(
                             "Tool '{}' requires a connection_id argument. Available connections: {}.",
                             tool_name,
@@ -1109,7 +1035,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                         continue;
                     }
                     fallback_connection_config.clone()
-                }
+                },
             };
 
             // Frontend confirmation gate
@@ -1147,18 +1073,16 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                         Ok(Err(_)) => false,
                         Err(_) => {
                             return Err(format!("tool confirmation timeout: {}", tool_call_id));
-                        }
+                        },
                     },
                     Either::Right((_, _)) => {
                         return Err("cancelled".to_string());
-                    }
+                    },
                 }
             };
 
             if !allowed {
-                store
-                    .update_tool_call_status(&tool_call_id, "denied")
-                    .await?;
+                store.update_tool_call_status(&tool_call_id, "denied").await?;
                 let tool_deny_msg = json!({
                     "tool_call_id": tool_call_id,
                     "name": tool_name,
@@ -1177,9 +1101,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 continue;
             }
 
-            store
-                .update_tool_call_status(&tool_call_id, "approved")
-                .await?;
+            store.update_tool_call_status(&tool_call_id, "approved").await?;
 
             // Execute tool with cancellation support
             let envelope: ToolEnvelope = {
@@ -1192,9 +1114,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                     Either::Left((result, _)) => match result {
                         Ok(env) => env,
                         Err(e) => {
-                            store
-                                .update_tool_call_status(&tool_call_id, "failed")
-                                .await?;
+                            store.update_tool_call_status(&tool_call_id, "failed").await?;
                             let err_content = format!("Tool execution error: {}", e);
                             let error_msg = json!({
                                 "tool_call_id": tool_call_id,
@@ -1221,12 +1141,10 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                                 }),
                             );
                             continue;
-                        }
+                        },
                     },
                     Either::Right((_, _)) => {
-                        store
-                            .update_tool_call_status(&tool_call_id, "failed")
-                            .await?;
+                        store.update_tool_call_status(&tool_call_id, "failed").await?;
                         let cancel_msg = json!({
                             "tool_call_id": tool_call_id,
                             "name": tool_name,
@@ -1246,16 +1164,12 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                         )
                         .await?;
                         return Err("cancelled".to_string());
-                    }
+                    },
                 }
             };
 
-            store
-                .insert_tool_result(&tool_call_id, &envelope.full_result)
-                .await?;
-            store
-                .update_tool_call_status(&tool_call_id, "completed")
-                .await?;
+            store.insert_tool_result(&tool_call_id, &envelope.full_result).await?;
+            store.update_tool_call_status(&tool_call_id, "completed").await?;
 
             emitter.emit(
                 "agent-loop-tool-result",
@@ -1339,11 +1253,9 @@ pub async fn get_tool_full_result<S: SessionStore>(
     _tool_call_id: &str,
     _store: &S,
 ) -> Result<String, String> {
-    Err(
-        "get_tool_full_result: not implemented in generic SessionStore; \
+    Err("get_tool_full_result: not implemented in generic SessionStore; \
          implement a custom query in your app"
-            .to_string(),
-    )
+        .to_string())
 }
 
 // ---------------------------------------------------------------------------

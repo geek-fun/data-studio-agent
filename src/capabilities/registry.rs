@@ -26,9 +26,7 @@ impl Default for CapabilityRegistry {
 
 impl CapabilityRegistry {
     pub fn new() -> Self {
-        Self {
-            capabilities: HashMap::new(),
-        }
+        Self { capabilities: HashMap::new() }
     }
 
     /// Register a single capability. Panics on duplicate names to catch
@@ -70,18 +68,12 @@ impl CapabilityRegistry {
 
     /// Return all capabilities tagged for the agent surface.
     pub fn agent_tools(&self) -> Vec<&Capability> {
-        self.capabilities
-            .values()
-            .filter(|cap| cap.tags.contains(&"agent"))
-            .collect()
+        self.capabilities.values().filter(|cap| cap.tags.contains(&"agent")).collect()
     }
 
     /// Return all capabilities tagged for the UI surface.
     pub fn ui_capabilities(&self) -> Vec<&Capability> {
-        self.capabilities
-            .values()
-            .filter(|cap| cap.tags.contains(&"ui"))
-            .collect()
+        self.capabilities.values().filter(|cap| cap.tags.contains(&"ui")).collect()
     }
 }
 
@@ -98,9 +90,7 @@ pub async fn invoke_capability_inner(
     args: Value,
     connection_config: Option<Value>,
 ) -> Result<String, String> {
-    let cap = registry()
-        .get(name)
-        .ok_or_else(|| format!("Unknown capability: {}", name))?;
+    let cap = registry().get(name).ok_or_else(|| format!("Unknown capability: {}", name))?;
 
     let config_ref = connection_config.as_ref();
     cap.handler.handle(&args, config_ref).await

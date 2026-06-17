@@ -1,8 +1,8 @@
-pub mod openai;
 pub mod anthropic;
+pub mod openai;
 
-pub use self::openai::OpenAIChatFormatter;
 pub use self::anthropic::AnthropicChatFormatter;
+pub use self::openai::OpenAIChatFormatter;
 
 /// Provider-agnostic message representation.
 pub struct LlmMessage {

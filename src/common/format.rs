@@ -6,10 +6,8 @@ pub fn truncate_tool_output(output: String) -> String {
     if output.len() <= TOOL_OUTPUT_MAX_BYTES {
         return output;
     }
-    let boundary = (0..=TOOL_OUTPUT_MAX_BYTES)
-        .rev()
-        .find(|&i| output.is_char_boundary(i))
-        .unwrap_or(0);
+    let boundary =
+        (0..=TOOL_OUTPUT_MAX_BYTES).rev().find(|&i| output.is_char_boundary(i)).unwrap_or(0);
     let omitted = output.len() - boundary;
     format!(
         "{}\n\n[Output truncated: {} bytes omitted. Consider refining your query to return fewer results.]",
