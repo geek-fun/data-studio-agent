@@ -54,7 +54,9 @@ jobs:
 
       - name: Generate coverage (lcov)
         if: runner.os == 'Linux'
-        run: cargo llvm-cov --all-features --lcov --output-path coverage/lcov.info
+        run: |
+          mkdir -p coverage
+          cargo llvm-cov --all-features --lcov --output-path coverage/lcov.info
 
       - name: Upload coverage to Codecov
         if: runner.os == 'Linux'
