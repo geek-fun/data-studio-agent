@@ -1,5 +1,4 @@
-use std::env;
-use std::time::Duration;
+use std::{env, time::Duration};
 
 fn get_proxy(http_proxy: Option<String>) -> Option<String> {
     if let Some(proxy) = http_proxy {

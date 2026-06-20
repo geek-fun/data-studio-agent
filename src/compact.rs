@@ -1,18 +1,20 @@
-use std::collections::HashMap;
-use std::sync::{Mutex, OnceLock};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    sync::{Mutex, OnceLock},
+    time::Duration,
+};
 
 use rand::Rng;
 use serde_json::{json, Value};
 
-use crate::chat_formatter::{ChatFormatter, LlmMessage, OpenAIChatFormatter};
-use crate::common::http_client::create_http_client;
-use crate::model_registry::{
-    apply_overrides, resolve_spec, usable_window, ModelSpec, TokenizerFamily,
+use crate::{
+    chat_formatter::{ChatFormatter, LlmMessage, OpenAIChatFormatter},
+    common::http_client::create_http_client,
+    model_registry::{apply_overrides, resolve_spec, usable_window, ModelSpec, TokenizerFamily},
+    provider_adapter::{build_headers, get_base_url},
+    token_counter::{count_chat_messages, count_tools_tokens, estimate_stored_message},
+    traits::{EventEmitter, SessionStore, StoredMessage},
 };
-use crate::provider_adapter::{build_headers, get_base_url};
-use crate::token_counter::{count_chat_messages, count_tools_tokens, estimate_stored_message};
-use crate::traits::{EventEmitter, SessionStore, StoredMessage};
 
 // ---------------------------------------------------------------------------
 // Type alias for backward compat / explicit re-export
@@ -58,17 +60,17 @@ pub const MAX_CONSECUTIVE_FAILURES: u32 = 3;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CompactDecision {
-    pub capacity: usize,
-    pub trigger_at: usize,
+    pub capacity:       usize,
+    pub trigger_at:     usize,
     pub should_compact: bool,
 }
 
 #[derive(Debug, Clone)]
 pub struct CompactionInfo {
-    pub trigger: String,
-    pub pre_tokens: usize,
-    pub post_tokens: usize,
-    pub removed_count: usize,
+    pub trigger:             String,
+    pub pre_tokens:          usize,
+    pub post_tokens:         usize,
+    pub removed_count:       usize,
     pub fallback_keep_pairs: Option<usize>,
 }
 
@@ -318,11 +320,11 @@ pub async fn summarize_with_llm(
     let model = settings.get("model").and_then(|v| v.as_str()).unwrap_or("gpt-4o-mini");
     let user_msg_text = serde_json::to_string(&chat_msgs).unwrap_or_default();
     let llm_messages = vec![LlmMessage {
-        role: "user".into(),
+        role:         "user".into(),
         text_content: user_msg_text,
-        tool_calls: None,
+        tool_calls:   None,
         tool_call_id: None,
-        thinking: None,
+        thinking:     None,
     }];
     let body =
         formatter.build_request(model, Some(COMPACT_SYSTEM_PROMPT), &llm_messages, None, false);
@@ -397,8 +399,8 @@ async fn insert_compact_boundary<S: SessionStore>(
 /// Auto-compaction split fallback strategy:
 /// 1) Try backward-safe split with KEEP_LAST_PAIRS=4.
 /// 2) If it collapses to zero, retry with keep_pairs 2, then 1.
-/// 3) If still zero, do a forward walk from the keep_pairs=1 proposed split.
-///    Emits `agent-loop-compacting` phase start/end around summarize_with_llm.
+/// 3) If still zero, do a forward walk from the keep_pairs=1 proposed split. Emits
+///    `agent-loop-compacting` phase start/end around summarize_with_llm.
 async fn run_compact_inner<S: SessionStore, E: EventEmitter>(
     session_id: &str,
     settings: &Value,
@@ -572,10 +574,10 @@ mod tests {
     #[test]
     fn trigger_small_window_ollama_default() {
         let spec = ModelSpec {
-            model_id: "llama3".into(),
+            model_id:       "llama3".into(),
             context_window: 8_192,
             output_reserve: 2_048,
-            tokenizer: TokenizerFamily::Generic,
+            tokenizer:      TokenizerFamily::Generic,
         };
         let trigger = compact_trigger_threshold(&spec);
         // capacity = 6144, buffer = 2000, ratio = 0.75
@@ -587,10 +589,10 @@ mod tests {
     #[test]
     fn trigger_large_window_gpt4o() {
         let spec = ModelSpec {
-            model_id: "gpt-4o".into(),
+            model_id:       "gpt-4o".into(),
             context_window: 128_000,
             output_reserve: 16_000,
-            tokenizer: TokenizerFamily::OpenAiO200k,
+            tokenizer:      TokenizerFamily::OpenAiO200k,
         };
         let trigger = compact_trigger_threshold(&spec);
         assert!(trigger > 80_000, "128K window should have generous trigger");
@@ -599,10 +601,10 @@ mod tests {
     #[test]
     fn trigger_huge_window_gpt41() {
         let spec = ModelSpec {
-            model_id: "gpt-4.1".into(),
+            model_id:       "gpt-4.1".into(),
             context_window: 1_047_576,
             output_reserve: 32_000,
-            tokenizer: TokenizerFamily::OpenAiO200k,
+            tokenizer:      TokenizerFamily::OpenAiO200k,
         };
         let trigger = compact_trigger_threshold(&spec);
         let capacity = usable_window(&spec); // ~1,015,576

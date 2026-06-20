@@ -5,12 +5,11 @@
 // This module provides lightweight helpers (time, ID generation, LLM retry)
 // that are used across multiple loop-related modules.
 
-/// Re-export the structured message type used by compaction and the projection layer.
-pub use crate::traits::StoredMessage;
-
 /// Re-export the compact LLM-call helper that lives in `compact.rs` to avoid
 /// duplicating the retry logic.
 pub use crate::compact::post_chat_completions_compact;
+/// Re-export the structured message type used by compaction and the projection layer.
+pub use crate::traits::StoredMessage;
 
 // ---------------------------------------------------------------------------
 // Time / ID helpers

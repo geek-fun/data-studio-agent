@@ -12,11 +12,11 @@ pub enum TokenizerFamily {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelSpec {
-    pub model_id: String,
+    pub model_id:       String,
     pub context_window: usize,
     pub output_reserve: usize,
     #[serde(skip)]
-    pub tokenizer: TokenizerFamily,
+    pub tokenizer:      TokenizerFamily,
 }
 
 const DEFAULT_OPENAI_RESERVE: usize = 16_000;
@@ -67,18 +67,18 @@ pub fn resolve_spec(provider: &str, model_id: &str) -> ModelSpec {
         for (id, ctx, reserve) in DEEPSEEK_MODELS {
             if matches_prefix(&lower, id) {
                 return ModelSpec {
-                    model_id: model_id.to_string(),
+                    model_id:       model_id.to_string(),
                     context_window: *ctx,
                     output_reserve: *reserve,
-                    tokenizer: TokenizerFamily::DeepSeek,
+                    tokenizer:      TokenizerFamily::DeepSeek,
                 };
             }
         }
         return ModelSpec {
-            model_id: model_id.to_string(),
+            model_id:       model_id.to_string(),
             context_window: 128_000,
             output_reserve: DEFAULT_DEEPSEEK_RESERVE,
-            tokenizer: TokenizerFamily::DeepSeek,
+            tokenizer:      TokenizerFamily::DeepSeek,
         };
     }
 
@@ -86,46 +86,46 @@ pub fn resolve_spec(provider: &str, model_id: &str) -> ModelSpec {
         for (id, ctx, reserve) in ANTHROPIC_MODELS {
             if matches_prefix(&lower, id) {
                 return ModelSpec {
-                    model_id: model_id.to_string(),
+                    model_id:       model_id.to_string(),
                     context_window: *ctx,
                     output_reserve: *reserve,
-                    tokenizer: TokenizerFamily::Anthropic,
+                    tokenizer:      TokenizerFamily::Anthropic,
                 };
             }
         }
         return ModelSpec {
-            model_id: model_id.to_string(),
+            model_id:       model_id.to_string(),
             context_window: DEFAULT_ANTHROPIC_WINDOW,
             output_reserve: DEFAULT_ANTHROPIC_RESERVE,
-            tokenizer: TokenizerFamily::Anthropic,
+            tokenizer:      TokenizerFamily::Anthropic,
         };
     }
 
     if provider == "OLLAMA" || provider == "LM_STUDIO" {
         return ModelSpec {
-            model_id: model_id.to_string(),
+            model_id:       model_id.to_string(),
             context_window: DEFAULT_OLLAMA_WINDOW,
             output_reserve: 2_048,
-            tokenizer: TokenizerFamily::Generic,
+            tokenizer:      TokenizerFamily::Generic,
         };
     }
 
     for (id, ctx, reserve, tk) in OPENAI_MODELS {
         if matches_prefix(&lower, id) {
             return ModelSpec {
-                model_id: model_id.to_string(),
+                model_id:       model_id.to_string(),
                 context_window: *ctx,
                 output_reserve: *reserve,
-                tokenizer: *tk,
+                tokenizer:      *tk,
             };
         }
     }
 
     ModelSpec {
-        model_id: model_id.to_string(),
+        model_id:       model_id.to_string(),
         context_window: DEFAULT_GENERIC_WINDOW,
         output_reserve: DEFAULT_GENERIC_RESERVE,
-        tokenizer: TokenizerFamily::Generic,
+        tokenizer:      TokenizerFamily::Generic,
     }
 }
 

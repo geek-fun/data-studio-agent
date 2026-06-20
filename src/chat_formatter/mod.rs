@@ -1,21 +1,20 @@
 pub mod anthropic;
 pub mod openai;
 
-pub use self::anthropic::AnthropicChatFormatter;
-pub use self::openai::OpenAIChatFormatter;
+pub use self::{anthropic::AnthropicChatFormatter, openai::OpenAIChatFormatter};
 
 /// Provider-agnostic message representation.
 pub struct LlmMessage {
-    pub role: String,
+    pub role:         String,
     pub text_content: String,
-    pub tool_calls: Option<Vec<LlmToolCall>>,
+    pub tool_calls:   Option<Vec<LlmToolCall>>,
     pub tool_call_id: Option<String>,
-    pub thinking: Option<String>,
+    pub thinking:     Option<String>,
 }
 
 pub struct LlmToolCall {
-    pub id: String,
-    pub name: String,
+    pub id:        String,
+    pub name:      String,
     pub arguments: String,
 }
 
@@ -23,17 +22,17 @@ pub struct LlmToolCall {
 /// Not all fields are populated on every event — the accumulator merges them.
 #[derive(Default, Debug)]
 pub struct StreamDelta {
-    pub content_delta: String,
-    pub thinking_delta: String,
+    pub content_delta:    String,
+    pub thinking_delta:   String,
     pub tool_call_deltas: Vec<StreamToolCallDelta>,
-    pub finish_reason: Option<String>,
+    pub finish_reason:    Option<String>,
 }
 
 #[derive(Default, Debug)]
 pub struct StreamToolCallDelta {
-    pub index: usize,
-    pub id: String,
-    pub name: String,
+    pub index:           usize,
+    pub id:              String,
+    pub name:            String,
     pub arguments_delta: String,
 }
 

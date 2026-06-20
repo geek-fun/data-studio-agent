@@ -7,17 +7,20 @@
 // instead of Tauri state / window handles, and receive aggregated results.
 // Streaming deltas are accumulated and returned in a single JSON `Value`.
 
-use async_openai::types::chat::{
-    ChatCompletionMessageToolCall, ChatCompletionRequestMessage, ChatCompletionTools,
-    CreateChatCompletionRequestArgs, FinishReason,
-};
-use async_openai::{config::OpenAIConfig, Client};
-use futures::StreamExt;
-use serde_json::{json, Value};
 use std::time::Duration;
 
-use crate::common::http_client::create_http_client;
-use crate::provider_adapter;
+use async_openai::{
+    config::OpenAIConfig,
+    types::chat::{
+        ChatCompletionMessageToolCall, ChatCompletionRequestMessage, ChatCompletionTools,
+        CreateChatCompletionRequestArgs, FinishReason,
+    },
+    Client,
+};
+use futures::StreamExt;
+use serde_json::{json, Value};
+
+use crate::{common::http_client::create_http_client, provider_adapter};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -256,7 +259,7 @@ async fn run_openai_stream(
 
                             while tool_calls.len() <= index {
                                 tool_calls.push(ChatCompletionMessageToolCall {
-                                    id: String::new(),
+                                    id:       String::new(),
                                     function: Default::default(),
                                 });
                             }

@@ -79,10 +79,10 @@ impl ChatFormatter for OpenAIChatFormatter {
     fn parse_chunk(&self, data: &str) -> Result<StreamDelta, String> {
         if data == "[DONE]" {
             return Ok(StreamDelta {
-                content_delta: String::new(),
-                thinking_delta: String::new(),
+                content_delta:    String::new(),
+                thinking_delta:   String::new(),
                 tool_call_deltas: vec![],
-                finish_reason: Some("stop".into()),
+                finish_reason:    Some("stop".into()),
             });
         }
         let v: Value =
@@ -142,11 +142,11 @@ mod tests {
     fn test_build_request_with_system_and_user() {
         let f = OpenAIChatFormatter;
         let msgs = vec![LlmMessage {
-            role: "user".into(),
+            role:         "user".into(),
             text_content: "Hello".into(),
-            tool_calls: None,
+            tool_calls:   None,
             tool_call_id: None,
-            thinking: None,
+            thinking:     None,
         }];
         let body = f.build_request("gpt-4", Some("You are helpful."), &msgs, None, true);
         assert_eq!(body["model"], "gpt-4");
@@ -161,11 +161,11 @@ mod tests {
     fn test_build_request_no_system_prompt() {
         let f = OpenAIChatFormatter;
         let msgs = vec![LlmMessage {
-            role: "user".into(),
+            role:         "user".into(),
             text_content: "Hi".into(),
-            tool_calls: None,
+            tool_calls:   None,
             tool_call_id: None,
-            thinking: None,
+            thinking:     None,
         }];
         let body = f.build_request("gpt-4", None, &msgs, None, false);
         assert_eq!(body["stream"], false);
@@ -177,15 +177,15 @@ mod tests {
     fn test_build_request_with_tool_call() {
         let f = OpenAIChatFormatter;
         let msgs = vec![LlmMessage {
-            role: "assistant".into(),
+            role:         "assistant".into(),
             text_content: "Let me search".into(),
-            tool_calls: Some(vec![LlmToolCall {
-                id: "call_1".into(),
-                name: "search".into(),
+            tool_calls:   Some(vec![LlmToolCall {
+                id:        "call_1".into(),
+                name:      "search".into(),
                 arguments: r#"{"q":"test"}"#.into(),
             }]),
             tool_call_id: None,
-            thinking: Some("I need to find this".into()),
+            thinking:     Some("I need to find this".into()),
         }];
         let body = f.build_request("gpt-4", None, &msgs, None, true);
         let assistant = &body["messages"][0];
@@ -198,11 +198,11 @@ mod tests {
     fn test_build_request_with_tools_param() {
         let f = OpenAIChatFormatter;
         let msgs = vec![LlmMessage {
-            role: "user".into(),
+            role:         "user".into(),
             text_content: "Search for X".into(),
-            tool_calls: None,
+            tool_calls:   None,
             tool_call_id: None,
-            thinking: None,
+            thinking:     None,
         }];
         let tools = json!([{
             "type": "function",
@@ -217,11 +217,11 @@ mod tests {
     fn test_build_request_tool_result() {
         let f = OpenAIChatFormatter;
         let msgs = vec![LlmMessage {
-            role: "tool".into(),
+            role:         "tool".into(),
             text_content: "Result data".into(),
-            tool_calls: None,
+            tool_calls:   None,
             tool_call_id: Some("call_1".into()),
-            thinking: None,
+            thinking:     None,
         }];
         let body = f.build_request("gpt-4", None, &msgs, None, true);
         assert_eq!(body["messages"][0]["role"], "tool");
