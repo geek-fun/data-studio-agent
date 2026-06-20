@@ -1,7 +1,8 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::sync::Arc;
 
 /// Risk level for a capability — governs whether the UI shows a confirmation
 /// dialog before execution.
@@ -54,15 +55,15 @@ pub trait CapabilityHandler: Send + Sync {
 /// A registered capability — the single definition of an operation
 /// that can be consumed by both the UI and the agent loop.
 pub struct Capability {
-    pub name: &'static str,
-    pub description: &'static str,
-    pub handler: Arc<dyn CapabilityHandler>,
-    pub input_schema: Value,
-    pub risk_level: RiskLevel,
+    pub name:                &'static str,
+    pub description:         &'static str,
+    pub handler:             Arc<dyn CapabilityHandler>,
+    pub input_schema:        Value,
+    pub risk_level:          RiskLevel,
     pub required_permission: &'static str,
-    pub source_kind: SourceKind,
+    pub source_kind:         SourceKind,
     /// Which surfaces expose this capability: "agent", "ui", or both.
-    pub tags: &'static [&'static str],
+    pub tags:                &'static [&'static str],
     /// Whether this capability can run in parallel with other capabilities.
-    pub parallel_ok: bool,
+    pub parallel_ok:         bool,
 }

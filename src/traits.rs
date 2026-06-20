@@ -1,7 +1,7 @@
+use std::{collections::HashMap, sync::Arc};
+
 use async_trait::async_trait;
 use serde_json::Value;
-use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::Mutex as AsyncMutex;
 
 use crate::tool_executor::ToolExecutor;
@@ -83,8 +83,8 @@ pub trait EventEmitter: Send + Sync {
 
 #[derive(Debug, Clone)]
 pub struct StoredMessage {
-    pub id: String,
-    pub role: String,
+    pub id:      String,
+    pub role:    String,
     pub content: String,
 }
 
@@ -98,8 +98,8 @@ pub type CancelMap = Arc<std::sync::Mutex<HashMap<String, tokio::sync::oneshot::
 
 /// Bundled context for running the agent loop.
 pub struct AgentContext<S: SessionStore, E: EventEmitter> {
-    pub store: Arc<S>,
-    pub emitter: Arc<E>,
+    pub store:         Arc<S>,
+    pub emitter:       Arc<E>,
     pub tool_executor: Arc<dyn ToolExecutor>,
-    pub confirm_map: ConfirmMap,
+    pub confirm_map:   ConfirmMap,
 }

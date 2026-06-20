@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::sync::OnceLock;
+use std::{collections::HashMap, sync::OnceLock};
 
 use serde_json::Value;
 
@@ -98,11 +97,13 @@ pub async fn invoke_capability_inner(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
+    use std::sync::Arc;
+
     use async_trait::async_trait;
     use serde_json::json;
-    use std::sync::Arc;
+
+    use super::*;
+    use crate::capabilities::types::{Capability, CapabilityHandler, RiskLevel, SourceKind};
 
     struct TestHandler;
 

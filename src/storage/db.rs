@@ -1,5 +1,7 @@
-use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+};
 
 /// A thread-safe SQLite connection pool (single connection with Mutex).
 /// Each app creates one AgentDb instance pointing to its own SQLite file.

@@ -6,29 +6,36 @@
 // All persistence goes through the SessionStore trait.
 // ---------------------------------------------------------------------------
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::time::Duration;
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    time::Duration,
+};
 
-use crate::chat_formatter::{
-    AnthropicChatFormatter, ChatFormatter, LlmMessage, LlmToolCall, OpenAIChatFormatter,
+use futures::{
+    future::{select, Either},
+    pin_mut,
+    stream::FuturesUnordered,
+    StreamExt,
 };
-use crate::common::http_client::create_http_client;
-use crate::compact::{
-    count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_manual,
-};
-use crate::conversation::prepare_for_llm;
-use crate::loop_runner_support::new_id;
-use crate::provider_adapter::{build_headers, get_base_url};
-use crate::token_counter::count_chat_messages;
-use crate::tool_executor::{ToolEnvelope, ToolExecutor};
-use crate::tools::get_tool_required_params;
-use crate::traits::{CancelMap, ConfirmMap, EventEmitter, SessionStore, StoredMessage};
-use futures::future::{select, Either};
-use futures::pin_mut;
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
 use serde_json::{json, Value};
 use tokio::sync::oneshot;
+
+use crate::{
+    chat_formatter::{
+        AnthropicChatFormatter, ChatFormatter, LlmMessage, LlmToolCall, OpenAIChatFormatter,
+    },
+    common::http_client::create_http_client,
+    compact::{
+        count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_manual,
+    },
+    conversation::prepare_for_llm,
+    loop_runner_support::new_id,
+    provider_adapter::{build_headers, get_base_url},
+    token_counter::count_chat_messages,
+    tool_executor::{ToolEnvelope, ToolExecutor},
+    tools::get_tool_required_params,
+    traits::{CancelMap, ConfirmMap, EventEmitter, SessionStore, StoredMessage},
+};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -84,7 +91,7 @@ fn is_fatal(err_type: &str) -> bool {
 // ---------------------------------------------------------------------------
 
 struct ConfirmGuard {
-    confirm_map: ConfirmMap,
+    confirm_map:  ConfirmMap,
     tool_call_id: String,
 }
 
@@ -116,11 +123,11 @@ pub fn build_llm_messages(
     if let Some(sys) = system_prompt {
         if !sys.trim().is_empty() {
             out.push(LlmMessage {
-                role: "system".into(),
+                role:         "system".into(),
                 text_content: sys.to_string(),
-                tool_calls: None,
+                tool_calls:   None,
                 tool_call_id: None,
-                thinking: None,
+                thinking:     None,
             });
         }
     }
@@ -139,19 +146,19 @@ pub fn build_llm_messages(
                     continue;
                 }
                 out.push(LlmMessage {
-                    role: "tool".into(),
+                    role:         "tool".into(),
                     text_content: inner.to_string(),
-                    tool_calls: None,
+                    tool_calls:   None,
                     tool_call_id: Some(tool_call_id.to_string()),
-                    thinking: None,
+                    thinking:     None,
                 });
             } else {
                 out.push(LlmMessage {
-                    role: "tool".into(),
+                    role:         "tool".into(),
                     text_content: content.clone(),
-                    tool_calls: None,
+                    tool_calls:   None,
                     tool_call_id: None,
-                    thinking: None,
+                    thinking:     None,
                 });
             }
             if !pending_tool_call_ids.is_empty()
@@ -206,11 +213,11 @@ pub fn build_llm_messages(
                 }
             }
             out.push(LlmMessage {
-                role: "assistant".into(),
+                role:         "assistant".into(),
                 text_content: content.clone(),
-                tool_calls: None,
+                tool_calls:   None,
                 tool_call_id: None,
-                thinking: None,
+                thinking:     None,
             });
         } else {
             // Non-assistant/non-tool row: drop orphan assistant
@@ -225,22 +232,22 @@ pub fn build_llm_messages(
                     if v.get("_compact_boundary").and_then(|x| x.as_bool()).unwrap_or(false) {
                         let summary = v.get("summary").and_then(|x| x.as_str()).unwrap_or_default();
                         out.push(LlmMessage {
-                            role: "system".into(),
+                            role:         "system".into(),
                             text_content: summary.to_string(),
-                            tool_calls: None,
+                            tool_calls:   None,
                             tool_call_id: None,
-                            thinking: None,
+                            thinking:     None,
                         });
                         continue;
                     }
                 }
             }
             out.push(LlmMessage {
-                role: role.clone(),
+                role:         role.clone(),
                 text_content: content.clone(),
-                tool_calls: None,
+                tool_calls:   None,
                 tool_call_id: None,
-                thinking: None,
+                thinking:     None,
             });
         }
     }
@@ -316,16 +323,16 @@ pub fn project_messages(messages: &[StoredMessage], system_prompt: Option<&str>)
 
 #[derive(Default)]
 struct StreamAccumulator {
-    content: String,
-    thinking: String,
-    tool_calls: Vec<AccTool>,
+    content:       String,
+    thinking:      String,
+    tool_calls:    Vec<AccTool>,
     finish_reason: String,
 }
 
 #[derive(Default, Clone)]
 struct AccTool {
-    id: String,
-    name: String,
+    id:        String,
+    name:      String,
     arguments: String,
 }
 
@@ -578,13 +585,13 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
 // ---------------------------------------------------------------------------
 
 struct PreparedToolCall {
-    tool_call_id: String,
+    tool_call_id:         String,
     #[allow(dead_code)]
     assistant_message_id: String,
-    tool_name: String,
-    arguments: Value,
-    resolved_config: Value,
-    parallel_ok: bool,
+    tool_name:            String,
+    arguments:            Value,
+    resolved_config:      Value,
+    parallel_ok:          bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -885,16 +892,8 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             && recent_tool_signatures.iter().all(|s| s == &iter_signature)
         {
             let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
-            inline_append(
-                store,
-                emitter,
-                settings,
-                &new_id(),
-                session_id,
-                "assistant",
-                stuck_msg,
-            )
-            .await?;
+            inline_append(store, emitter, settings, &new_id(), session_id, "assistant", stuck_msg)
+                .await?;
             emitter.emit("agent-loop-error", json!({"session_id": session_id, "error": stuck_msg}));
             return Ok(());
         }
@@ -1195,11 +1194,11 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
 // ---------------------------------------------------------------------------
 
 struct ToolExecutionResult {
-    index: usize,
+    index:        usize,
     tool_call_id: String,
-    tool_name: String,
-    result: Result<ToolEnvelope, String>,
-    cancelled: bool,
+    tool_name:    String,
+    result:       Result<ToolEnvelope, String>,
+    cancelled:    bool,
 }
 
 async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
@@ -1267,11 +1266,11 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                 if !completed_indices.contains(&j) {
                     let tool = &prepared[j];
                     all_results.push(ToolExecutionResult {
-                        index: j,
+                        index:        j,
                         tool_call_id: tool.tool_call_id.clone(),
-                        tool_name: tool.tool_name.clone(),
-                        result: Err("cancelled".to_string()),
-                        cancelled: true,
+                        tool_name:    tool.tool_name.clone(),
+                        result:       Err("cancelled".to_string()),
+                        cancelled:    true,
                     });
                 }
             }
@@ -1363,11 +1362,11 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
         for (j, tool) in prepared.iter().enumerate() {
             if !processed.contains(&j) {
                 all_results.push(ToolExecutionResult {
-                    index: j,
+                    index:        j,
                     tool_call_id: tool.tool_call_id.clone(),
-                    tool_name: tool.tool_name.clone(),
-                    result: Err("cancelled".to_string()),
-                    cancelled: true,
+                    tool_name:    tool.tool_name.clone(),
+                    result:       Err("cancelled".to_string()),
+                    cancelled:    true,
                 });
             }
         }
@@ -1391,7 +1390,9 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
             } else {
                 match &result.result {
                     Ok(envelope) => {
-                        store.insert_tool_result(&result.tool_call_id, &envelope.full_result).await?;
+                        store
+                            .insert_tool_result(&result.tool_call_id, &envelope.full_result)
+                            .await?;
                         store.update_tool_call_status(&result.tool_call_id, "completed").await?;
                         emitter.emit(
                             "agent-loop-tool-result",
@@ -1433,7 +1434,8 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                 }
             }
             Ok(())
-        }.await;
+        }
+        .await;
 
         if let Err(e) = process_result {
             eprintln!("[agent] Failed to store tool result for '{}': {}", result.tool_name, e);

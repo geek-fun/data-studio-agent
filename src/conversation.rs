@@ -7,16 +7,20 @@
 // **EventEmitter** (UI / streaming notifications) traits so that any
 // application — Tauri, CLI, test harness — can provide its own backend.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, Mutex, OnceLock},
+};
 
 use serde_json::{json, Value};
 use tokio::sync::Mutex as AsyncMutex;
 
-use crate::compact::{
-    count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_with_events,
+use crate::{
+    compact::{
+        count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_with_events,
+    },
+    traits::{EventEmitter, SessionStore, StoredMessage},
 };
-use crate::traits::{EventEmitter, SessionStore, StoredMessage};
 
 // ---------------------------------------------------------------------------
 // Per-session compaction lock registry (global)
@@ -194,12 +198,11 @@ pub async fn append<S: SessionStore + 'static, E: EventEmitter + 'static>(
     // 2. Emit an up-to-date context-usage event.
     emit_usage(store.as_ref(), emitter.as_ref(), session_id, settings).await;
 
-    // 3. Do NOT trigger background compaction immediately after an assistant
-    //    message that contains tool_calls: the tool results have not been
-    //    written yet, so compaction would see a dangling assistant+tool_calls
-    //    with no following tool messages and produce a payload that OpenAI
-    //    rejects with HTTP 400.  The `prepare_for_llm` gate runs before every
-    //    LLM call and is the correct place to compact in that scenario.
+    // 3. Do NOT trigger background compaction immediately after an assistant message that contains
+    //    tool_calls: the tool results have not been written yet, so compaction would see a dangling
+    //    assistant+tool_calls with no following tool messages and produce a payload that OpenAI
+    //    rejects with HTTP 400.  The `prepare_for_llm` gate runs before every LLM call and is the
+    //    correct place to compact in that scenario.
     let has_pending_tool_calls = role == "assistant"
         && serde_json::from_str::<Value>(content)
             .ok()

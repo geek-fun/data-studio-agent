@@ -4,18 +4,18 @@ use serde_json::Value;
 /// Metadata about a tool execution result.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolResultMetadata {
-    pub tool_name: String,
+    pub tool_name:   String,
     pub duration_ms: u64,
-    pub truncated: bool,
+    pub truncated:   bool,
 }
 
 /// The result envelope from a tool execution — summary for the LLM,
 /// full result for storage/UI display.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ToolEnvelope {
-    pub summary: String,
+    pub summary:     String,
     pub full_result: String,
-    pub metadata: ToolResultMetadata,
+    pub metadata:    ToolResultMetadata,
 }
 
 /// Application-provided trait for executing tool calls.

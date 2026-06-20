@@ -1,9 +1,12 @@
 use std::sync::Arc;
 
-use crate::storage::db::AgentDb;
-use crate::traits::{SessionStore, StoredMessage};
 use async_trait::async_trait;
 use tokio::sync::Mutex as AsyncMutex;
+
+use crate::{
+    storage::db::AgentDb,
+    traits::{SessionStore, StoredMessage},
+};
 
 fn now_ms() -> i64 {
     std::time::SystemTime::now()
@@ -200,8 +203,8 @@ impl SessionStore for SqliteSessionStore {
             let rows = stmt
                 .query_map(rusqlite::params![sid], |row| {
                     Ok(StoredMessage {
-                        id: row.get::<_, String>(0)?,
-                        role: row.get::<_, String>(1)?,
+                        id:      row.get::<_, String>(0)?,
+                        role:    row.get::<_, String>(1)?,
                         content: row.get::<_, String>(2)?,
                     })
                 })
@@ -231,8 +234,8 @@ impl SessionStore for SqliteSessionStore {
             let rows = stmt
                 .query_map(rusqlite::params![sid], |row| {
                     Ok(StoredMessage {
-                        id: row.get::<_, String>(0)?,
-                        role: row.get::<_, String>(1)?,
+                        id:      row.get::<_, String>(0)?,
+                        role:    row.get::<_, String>(1)?,
                         content: row.get::<_, String>(2)?,
                     })
                 })
