@@ -18,6 +18,7 @@ jobs:
   # ── Build & Test ────────────────────────────────────────
   test:
     name: Test (${{ matrix.os }})
+    needs: [lint, audit]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -43,6 +44,27 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --all-features
+
+      # ── Coverage (one OS only) ──────────────────────────
+      - name: Install cargo-llvm-cov
+        if: runner.os == 'Linux'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+
+      - name: Generate coverage (lcov)
+        if: runner.os == 'Linux'
+        run: cargo llvm-cov --all-features --lcov --output-path coverage/lcov.info
+
+      - name: Upload coverage to Codecov
+        if: runner.os == 'Linux'
+        uses: codecov/codecov-action@v5
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          fail_ci_if_error: false
 
   # ── Lint (clippy + fmt) ─────────────────────────────────
   lint:
