@@ -92,8 +92,8 @@ jobs:
           key: ubuntu-latest-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: ubuntu-latest-cargo-
 
-      - name: Clippy
-        run: cargo clippy --workspace --all-features -- -D warnings
+      - name: Clippy (stable)
+        run: cargo +stable clippy --workspace --all-features -- -D warnings
 
       - name: Check formatting (nightly)
         run: cargo +nightly fmt --all -- --check
