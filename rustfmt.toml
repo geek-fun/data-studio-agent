@@ -1,31 +1,9 @@
 # Rustfmt configuration for data-studio-agent workspace
+# Stable-only options — CI validates with stable `cargo fmt`.
 
-# Edition
 edition = "2021"
-
-# General formatting
 max_width = 100
 tab_spaces = 4
 hard_tabs = false
-
-# Imports
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
-
-# Expression formatting
 use_small_heuristics = "Max"
 match_block_trailing_comma = true
-trailing_comma = "Vertical"
-trailing_semicolon = true
-
-# Struct/enum formatting
-struct_field_align_threshold = 20
-enum_discrim_align_threshold = 20
-
-# Macro formatting
-format_macro_matchers = true
-
-# Comments
-normalize_comments = true
-wrap_comments = true
-comment_width = 100

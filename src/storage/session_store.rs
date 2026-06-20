@@ -203,8 +203,8 @@ impl SessionStore for SqliteSessionStore {
             let rows = stmt
                 .query_map(rusqlite::params![sid], |row| {
                     Ok(StoredMessage {
-                        id:      row.get::<_, String>(0)?,
-                        role:    row.get::<_, String>(1)?,
+                        id: row.get::<_, String>(0)?,
+                        role: row.get::<_, String>(1)?,
                         content: row.get::<_, String>(2)?,
                     })
                 })
@@ -234,8 +234,8 @@ impl SessionStore for SqliteSessionStore {
             let rows = stmt
                 .query_map(rusqlite::params![sid], |row| {
                     Ok(StoredMessage {
-                        id:      row.get::<_, String>(0)?,
-                        role:    row.get::<_, String>(1)?,
+                        id: row.get::<_, String>(0)?,
+                        role: row.get::<_, String>(1)?,
                         content: row.get::<_, String>(2)?,
                     })
                 })
