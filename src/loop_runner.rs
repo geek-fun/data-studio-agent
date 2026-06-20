@@ -245,7 +245,7 @@ pub fn build_llm_messages(
         }
     }
     if !pending_tool_call_ids.is_empty() {
-        for msg in out.iter_mut().rev() {
+        if let Some(msg) = out.iter_mut().next_back() {
             let should_clear = if let Some(ref mut calls) = msg.tool_calls {
                 calls.retain(|tc| !pending_tool_call_ids.contains(&tc.id));
                 calls.is_empty()
@@ -255,7 +255,6 @@ pub fn build_llm_messages(
             if should_clear {
                 msg.tool_calls = None;
             }
-            break;
         }
     }
     out
