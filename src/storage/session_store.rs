@@ -45,7 +45,7 @@ impl SessionStore for SqliteSessionStore {
                 .prepare(
                     "SELECT id, role, content FROM agent_messages \
                      WHERE session_id = ?1 \
-                     ORDER BY created_at ASC, id ASC",
+                     ORDER BY rowid ASC",
                 )
                 .map_err(|e| e.to_string())?;
             let rows = stmt
@@ -194,7 +194,7 @@ impl SessionStore for SqliteSessionStore {
                 .prepare(
                     "SELECT id, role, content FROM agent_messages \
                      WHERE session_id = ?1 \
-                     ORDER BY created_at ASC, id ASC",
+                     ORDER BY rowid ASC",
                 )
                 .map_err(|e| e.to_string())?;
             let rows = stmt
@@ -225,7 +225,7 @@ impl SessionStore for SqliteSessionStore {
                 .prepare(
                     "SELECT id, role, content FROM agent_messages \
                      WHERE session_id = ?1 \
-                     ORDER BY created_at ASC, id ASC",
+                     ORDER BY rowid ASC",
                 )
                 .map_err(|e| e.to_string())?;
             let rows = stmt

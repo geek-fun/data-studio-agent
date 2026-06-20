@@ -39,6 +39,10 @@ const DEFAULT_WALL_CLOCK_BUDGET_SECS: u64 = 30 * 60;
 const DEFAULT_TOKEN_BUDGET: usize = 20_000_000;
 const CONFIRM_TIMEOUT_SECS: u64 = 300;
 const RETRY_DELAYS_MS: &[u64] = &[1_000, 3_000, 8_000];
+const TOOL_EXECUTION_TIMEOUT_SECS: u64 = 30;
+const MAX_RUNAWAY_ITERATIONS: usize = 5;
+const TOOL_RETRY_DELAYS_SECS: &[u64] = &[2, 5];
+const TOOL_MAX_ATTEMPTS: usize = 3;
 const RETRY_JITTER_MS: u64 = 250;
 const RETRYABLE_ERROR_TYPES: &[&str] =
     &["rate_limit_exceeded", "service_unavailable", "overloaded_error"];
@@ -141,8 +145,15 @@ pub fn build_llm_messages(
                     tool_call_id: Some(tool_call_id.to_string()),
                     thinking: None,
                 });
+            } else {
+                out.push(LlmMessage {
+                    role: "tool".into(),
+                    text_content: content.clone(),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    thinking: None,
+                });
             }
-        } else if role == "assistant" {
             if !pending_tool_call_ids.is_empty()
                 && out.last().map(|m| m.role.as_str()) == Some("assistant")
             {
@@ -233,9 +244,19 @@ pub fn build_llm_messages(
             });
         }
     }
-    if !pending_tool_call_ids.is_empty() && out.last().map(|m| m.role.as_str()) == Some("assistant")
-    {
-        out.pop();
+    if !pending_tool_call_ids.is_empty() {
+        for msg in out.iter_mut().rev() {
+            let should_clear = if let Some(ref mut calls) = msg.tool_calls {
+                calls.retain(|tc| !pending_tool_call_ids.contains(&tc.id));
+                calls.is_empty()
+            } else {
+                false
+            };
+            if should_clear {
+                msg.tool_calls = None;
+            }
+            break;
+        }
     }
     out
 }
@@ -641,8 +662,9 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
 
     let mut cumulative_input_tokens: usize = 0;
     let mut iter_count: usize = 0;
-    // Tracks consecutive argument-parse failures per tool name.
     let mut consecutive_parse_failures: HashMap<String, usize> = HashMap::new();
+    let mut consecutive_400_errors: usize = 0;
+    const MAX_CONSECUTIVE_400: usize = 3;
 
     loop {
         if iter_count >= max_iterations {
@@ -682,7 +704,14 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         );
 
         // Prepare: run compaction if needed (uses store directly)
-        prepare_for_llm(store, emitter, settings, session_id).await?;
+        {
+            let prep_fut = prepare_for_llm(store, emitter, settings, session_id);
+            pin_mut!(prep_fut);
+            match select(prep_fut, &mut cancel_rx).await {
+                Either::Left((result, _)) => result?,
+                Either::Right((_, _)) => return Err("cancelled".to_string()),
+            }
+        }
 
         let history = store.load_active_history(session_id).await?;
         let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
@@ -730,8 +759,19 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             pin_mut!(cancel_fut);
             match select(stream_fut, cancel_fut).await {
                 Either::Left((result, _)) => match result {
-                    Ok(a) => a,
+                    Ok(a) => {
+                        consecutive_400_errors = 0;
+                        a
+                    },
                     Err(e) => {
+                        let err_type = classify_error(&e).unwrap_or_default();
+                        let is_tool_msg_mismatch = e.contains("insufficient tool messages");
+                        if is_tool_msg_mismatch && consecutive_400_errors < MAX_CONSECUTIVE_400 {
+                            consecutive_400_errors += 1;
+                            eprintln!("[agent] LLM 400 tool message mismatch (attempt {}/{}), retrying with repair",
+                                consecutive_400_errors, MAX_CONSECUTIVE_400);
+                            continue;
+                        }
                         let _ = inline_append(
                             store,
                             emitter,
@@ -742,7 +782,6 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                             &e,
                         )
                         .await;
-                        let err_type = classify_error(&e).unwrap_or_default();
                         if is_fatal(&err_type) || e.starts_with("LLM HTTP 4") {
                             emitter.emit(
                                 "agent-loop-error",
@@ -797,26 +836,12 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             sigs.sort();
             sigs.join("|")
         };
-        recent_tool_signatures.push_back(iter_signature.clone());
-        if recent_tool_signatures.len() > 3 {
-            recent_tool_signatures.pop_front();
+        if !acc.content.is_empty() {
+            recent_tool_signatures.clear();
         }
-        if recent_tool_signatures.len() == 3
-            && recent_tool_signatures.iter().all(|s| s == &iter_signature)
-        {
-            let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
-            inline_append(
-                store,
-                emitter,
-                settings,
-                &assistant_message_id,
-                session_id,
-                "assistant",
-                stuck_msg,
-            )
-            .await?;
-            emitter.emit("agent-loop-error", json!({"session_id": session_id, "error": stuck_msg}));
-            return Ok(());
+        recent_tool_signatures.push_back(iter_signature.clone());
+        if recent_tool_signatures.len() > MAX_RUNAWAY_ITERATIONS {
+            recent_tool_signatures.pop_front();
         }
 
         let resolved_tool_ids: Vec<String> = acc
@@ -856,6 +881,24 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             "agent-loop-step-done",
             json!({"session_id": session_id, "message_id": assistant_message_id}),
         );
+
+        if recent_tool_signatures.len() == MAX_RUNAWAY_ITERATIONS
+            && recent_tool_signatures.iter().all(|s| s == &iter_signature)
+        {
+            let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
+            inline_append(
+                store,
+                emitter,
+                settings,
+                &new_id(),
+                session_id,
+                "assistant",
+                stuck_msg,
+            )
+            .await?;
+            emitter.emit("agent-loop-error", json!({"session_id": session_id, "error": stuck_msg}));
+            return Ok(());
+        }
 
         let mut prepared: Vec<PreparedToolCall> = Vec::new();
         for (tc, tool_call_id) in acc.tool_calls.iter().zip(resolved_tool_ids.iter()) {
@@ -1133,7 +1176,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         }
 
         if prepared.is_empty() {
-            return Ok(());
+            continue;
         }
         execute_phase2_3(
             session_id,
@@ -1241,6 +1284,9 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
             let tool_call_id = tool.tool_call_id.clone();
             let tool_name = tool.tool_name.clone();
 
+            let tool_timeout = Duration::from_secs(TOOL_EXECUTION_TIMEOUT_SECS);
+            let tool_call_id_emit = tool_call_id.clone();
+            let tool_name_emit = tool_name.clone();
             let tr = tokio::select! {
                 biased;
                 _ = &mut *cancel_rx => {
@@ -1252,7 +1298,36 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                         cancelled: true,
                     }
                 }
-                r = tool_executor.execute(&tool.tool_name, &tool.arguments, &tool.resolved_config) => {
+                r = async {
+                    let mut last_err = String::new();
+                    for attempt in 0..TOOL_MAX_ATTEMPTS {
+                        let result = tokio::time::timeout(
+                            tool_timeout,
+                            tool_executor.execute(&tool.tool_name, &tool.arguments, &tool.resolved_config),
+                        ).await;
+                        match result {
+                            Ok(Ok(envelope)) => return Ok(envelope),
+                            Ok(Err(e)) => { last_err = e; }
+                            Err(_) => { last_err = format!("Tool execution timed out after {}s", TOOL_EXECUTION_TIMEOUT_SECS); }
+                        }
+                        if attempt + 1 < TOOL_MAX_ATTEMPTS {
+                            emitter.emit(
+                                "agent-loop-tool-retry",
+                                json!({
+                                    "session_id": session_id,
+                                    "tool_call_id": tool_call_id_emit,
+                                    "tool_name": tool_name_emit,
+                                    "attempt": attempt + 2,
+                                    "max_attempts": TOOL_MAX_ATTEMPTS,
+                                    "delay_secs": TOOL_RETRY_DELAYS_SECS.get(attempt).copied().unwrap_or(5),
+                                }),
+                            );
+                            let delay = TOOL_RETRY_DELAYS_SECS.get(attempt).copied().unwrap_or(5);
+                            tokio::time::sleep(Duration::from_secs(delay)).await;
+                        }
+                    }
+                    Err(last_err)
+                } => {
                     match r {
                         Ok(envelope) => ToolExecutionResult {
                             index,
@@ -1300,60 +1375,69 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
     }
 
     // --- Phase 3: Process results in original order ---
+    // Each result is processed independently — a storage error for one tool
+    // must not prevent subsequent tools from being recorded.
     all_results.sort_by_key(|r| r.index);
 
     for result in &all_results {
-        if result.cancelled {
-            store.update_tool_call_status(&result.tool_call_id, "failed").await?;
-            let cancel_msg = json!({
-                "tool_call_id": result.tool_call_id,
-                "name": result.tool_name,
-                "content": "Tool call was cancelled.",
-            });
-            store.write_message(&new_id(), session_id, "tool", &cancel_msg.to_string()).await?;
-        } else {
-            match &result.result {
-                Ok(envelope) => {
-                    store.insert_tool_result(&result.tool_call_id, &envelope.full_result).await?;
-                    store.update_tool_call_status(&result.tool_call_id, "completed").await?;
-                    emitter.emit(
-                        "agent-loop-tool-result",
-                        json!({
-                            "session_id": session_id,
+        let process_result: Result<(), String> = async {
+            if result.cancelled {
+                store.update_tool_call_status(&result.tool_call_id, "failed").await?;
+                let cancel_msg = json!({
+                    "tool_call_id": result.tool_call_id,
+                    "name": result.tool_name,
+                    "content": "Tool call was cancelled.",
+                });
+                store.write_message(&new_id(), session_id, "tool", &cancel_msg.to_string()).await?;
+            } else {
+                match &result.result {
+                    Ok(envelope) => {
+                        store.insert_tool_result(&result.tool_call_id, &envelope.full_result).await?;
+                        store.update_tool_call_status(&result.tool_call_id, "completed").await?;
+                        emitter.emit(
+                            "agent-loop-tool-result",
+                            json!({
+                                "session_id": session_id,
+                                "tool_call_id": result.tool_call_id,
+                                "envelope": envelope,
+                            }),
+                        );
+                        let tool_msg = json!({
                             "tool_call_id": result.tool_call_id,
-                            "envelope": envelope,
-                        }),
-                    );
-                    let tool_msg = json!({
-                        "tool_call_id": result.tool_call_id,
-                        "name": result.tool_name,
-                        "content": envelope.summary,
-                    });
-                    store
-                        .write_message(&new_id(), session_id, "tool", &tool_msg.to_string())
-                        .await?;
-                },
-                Err(e) => {
-                    store.update_tool_call_status(&result.tool_call_id, "failed").await?;
-                    emitter.emit(
-                        "agent-loop-tool-result",
-                        json!({
-                            "session_id": session_id,
+                            "name": result.tool_name,
+                            "content": envelope.summary,
+                        });
+                        store
+                            .write_message(&new_id(), session_id, "tool", &tool_msg.to_string())
+                            .await?;
+                    },
+                    Err(e) => {
+                        store.update_tool_call_status(&result.tool_call_id, "failed").await?;
+                        emitter.emit(
+                            "agent-loop-tool-result",
+                            json!({
+                                "session_id": session_id,
+                                "tool_call_id": result.tool_call_id,
+                                "error": true,
+                                "envelope": { "summary": e },
+                            }),
+                        );
+                        let err_msg = json!({
                             "tool_call_id": result.tool_call_id,
-                            "error": true,
-                            "envelope": { "summary": e },
-                        }),
-                    );
-                    let err_msg = json!({
-                        "tool_call_id": result.tool_call_id,
-                        "name": result.tool_name,
-                        "content": e,
-                    });
-                    store
-                        .write_message(&new_id(), session_id, "tool", &err_msg.to_string())
-                        .await?;
-                },
+                            "name": result.tool_name,
+                            "content": e,
+                        });
+                        store
+                            .write_message(&new_id(), session_id, "tool", &err_msg.to_string())
+                            .await?;
+                    },
+                }
             }
+            Ok(())
+        }.await;
+
+        if let Err(e) = process_result {
+            eprintln!("[agent] Failed to store tool result for '{}': {}", result.tool_name, e);
         }
     }
 
