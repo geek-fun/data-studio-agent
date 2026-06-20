@@ -75,7 +75,12 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
+          components: clippy
+
+      - name: Install nightly for rustfmt (unstable options in rustfmt.toml)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -90,8 +95,8 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-features -- -D warnings
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - name: Check formatting (nightly)
+        run: cargo +nightly fmt --all -- --check
 
   # ── Security audit ──────────────────────────────────────
   audit:
