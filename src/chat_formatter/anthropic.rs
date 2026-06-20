@@ -113,10 +113,10 @@ impl ChatFormatter for AnthropicChatFormatter {
     fn parse_chunk(&self, data: &str) -> Result<StreamDelta, String> {
         if data == "[DONE]" {
             return Ok(StreamDelta {
-                content_delta:    String::new(),
-                thinking_delta:   String::new(),
+                content_delta: String::new(),
+                thinking_delta: String::new(),
                 tool_call_deltas: vec![],
-                finish_reason:    Some("end_turn".into()),
+                finish_reason: Some("end_turn".into()),
             });
         }
         let raw = data.strip_prefix("data: ").unwrap_or(data);
@@ -127,10 +127,10 @@ impl ChatFormatter for AnthropicChatFormatter {
                 let delta = v.get("delta").ok_or("no delta")?;
                 let text = delta.get("text").and_then(|t| t.as_str()).unwrap_or("").to_string();
                 Ok(StreamDelta {
-                    content_delta:    text,
-                    thinking_delta:   String::new(),
+                    content_delta: text,
+                    thinking_delta: String::new(),
                     tool_call_deltas: vec![],
-                    finish_reason:    None,
+                    finish_reason: None,
                 })
             },
             "content_block_start" => {
@@ -140,15 +140,15 @@ impl ChatFormatter for AnthropicChatFormatter {
                     let id = block.get("id").and_then(|x| x.as_str()).unwrap_or("").to_string();
                     let name = block.get("name").and_then(|x| x.as_str()).unwrap_or("").to_string();
                     Ok(StreamDelta {
-                        content_delta:    String::new(),
-                        thinking_delta:   String::new(),
+                        content_delta: String::new(),
+                        thinking_delta: String::new(),
                         tool_call_deltas: vec![StreamToolCallDelta {
                             index: idx,
                             id,
                             name,
                             arguments_delta: String::new(),
                         }],
-                        finish_reason:    None,
+                        finish_reason: None,
                     })
                 } else {
                     Ok(StreamDelta::default())
@@ -163,15 +163,15 @@ impl ChatFormatter for AnthropicChatFormatter {
                     .to_string();
                 let idx = v.get("index").and_then(|i| i.as_u64()).unwrap_or(0) as usize;
                 Ok(StreamDelta {
-                    content_delta:    String::new(),
-                    thinking_delta:   String::new(),
+                    content_delta: String::new(),
+                    thinking_delta: String::new(),
                     tool_call_deltas: vec![StreamToolCallDelta {
-                        index:           idx,
-                        id:              String::new(),
-                        name:            String::new(),
+                        index: idx,
+                        id: String::new(),
+                        name: String::new(),
                         arguments_delta: partial,
                     }],
-                    finish_reason:    None,
+                    finish_reason: None,
                 })
             },
             "message_delta" => {
@@ -181,17 +181,17 @@ impl ChatFormatter for AnthropicChatFormatter {
                     .and_then(|s| s.as_str())
                     .map(|s| s.to_string());
                 Ok(StreamDelta {
-                    content_delta:    String::new(),
-                    thinking_delta:   String::new(),
+                    content_delta: String::new(),
+                    thinking_delta: String::new(),
                     tool_call_deltas: vec![],
-                    finish_reason:    stop,
+                    finish_reason: stop,
                 })
             },
             "message_stop" => Ok(StreamDelta {
-                content_delta:    String::new(),
-                thinking_delta:   String::new(),
+                content_delta: String::new(),
+                thinking_delta: String::new(),
                 tool_call_deltas: vec![],
-                finish_reason:    Some("end_turn".into()),
+                finish_reason: Some("end_turn".into()),
             }),
             "ping" => Ok(StreamDelta::default()),
             "content_block_stop" => Ok(StreamDelta::default()),
@@ -220,11 +220,11 @@ mod tests {
     fn test_build_request_system_user() {
         let f = AnthropicChatFormatter;
         let msgs = vec![LlmMessage {
-            role:         "user".into(),
+            role: "user".into(),
             text_content: "Hello".into(),
-            tool_calls:   None,
+            tool_calls: None,
             tool_call_id: None,
-            thinking:     None,
+            thinking: None,
         }];
         let body = f.build_request("claude-sonnet-4", Some("Be helpful."), &msgs, None, true);
         assert_eq!(body["model"], "claude-sonnet-4");
@@ -239,15 +239,15 @@ mod tests {
     fn test_build_request_tool_use() {
         let f = AnthropicChatFormatter;
         let msgs = vec![LlmMessage {
-            role:         "assistant".into(),
+            role: "assistant".into(),
             text_content: "Using tool".into(),
-            tool_calls:   Some(vec![LlmToolCall {
-                id:        "tu_1".into(),
-                name:      "get_weather".into(),
+            tool_calls: Some(vec![LlmToolCall {
+                id: "tu_1".into(),
+                name: "get_weather".into(),
                 arguments: r#"{"city":"Paris"}"#.into(),
             }]),
             tool_call_id: None,
-            thinking:     None,
+            thinking: None,
         }];
         let body = f.build_request("claude-4", None, &msgs, None, true);
         let content = &body["messages"][0]["content"];
@@ -263,11 +263,11 @@ mod tests {
     fn test_build_request_tool_result() {
         let f = AnthropicChatFormatter;
         let msgs = vec![LlmMessage {
-            role:         "tool".into(),
+            role: "tool".into(),
             text_content: "Sunny 25C".into(),
-            tool_calls:   None,
+            tool_calls: None,
             tool_call_id: Some("tu_1".into()),
-            thinking:     None,
+            thinking: None,
         }];
         let body = f.build_request("claude-4", None, &msgs, None, true);
         let msg = &body["messages"][0];
@@ -281,11 +281,11 @@ mod tests {
     fn test_build_request_with_tools_param() {
         let f = AnthropicChatFormatter;
         let msgs = vec![LlmMessage {
-            role:         "user".into(),
+            role: "user".into(),
             text_content: "Get weather".into(),
-            tool_calls:   None,
+            tool_calls: None,
             tool_call_id: None,
-            thinking:     None,
+            thinking: None,
         }];
         let tools = json!([{
             "type": "function",
@@ -301,11 +301,11 @@ mod tests {
     fn test_build_request_no_system() {
         let f = AnthropicChatFormatter;
         let msgs = vec![LlmMessage {
-            role:         "user".into(),
+            role: "user".into(),
             text_content: "Hi".into(),
-            tool_calls:   None,
+            tool_calls: None,
             tool_call_id: None,
-            thinking:     None,
+            thinking: None,
         }];
         let body = f.build_request("claude-4", None, &msgs, None, false);
         assert!(body.get("system").is_none());

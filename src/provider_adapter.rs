@@ -7,35 +7,35 @@ use serde_json::Value;
 
 #[allow(dead_code)]
 struct ApiEndpointConfig {
-    chat_path:          &'static str,
-    models_path:        &'static str,
-    auth_header_name:   &'static str,
+    chat_path: &'static str,
+    models_path: &'static str,
+    auth_header_name: &'static str,
     auth_header_prefix: &'static str,
-    models_extractor:   fn(&Value) -> Vec<String>,
+    models_extractor: fn(&Value) -> Vec<String>,
 }
 
 static OPENAI_ENDPOINT: ApiEndpointConfig = ApiEndpointConfig {
-    chat_path:          "/v1/chat/completions",
-    models_path:        "/v1/models",
-    auth_header_name:   "Authorization",
+    chat_path: "/v1/chat/completions",
+    models_path: "/v1/models",
+    auth_header_name: "Authorization",
     auth_header_prefix: "Bearer ",
-    models_extractor:   openai_models_extractor,
+    models_extractor: openai_models_extractor,
 };
 
 static ANTHROPIC_ENDPOINT: ApiEndpointConfig = ApiEndpointConfig {
-    chat_path:          "/v1/messages",
-    models_path:        "/v1/models",
-    auth_header_name:   "x-api-key",
+    chat_path: "/v1/messages",
+    models_path: "/v1/models",
+    auth_header_name: "x-api-key",
     auth_header_prefix: "",
-    models_extractor:   openai_models_extractor,
+    models_extractor: openai_models_extractor,
 };
 
 static LOCAL_ENDPOINT: ApiEndpointConfig = ApiEndpointConfig {
-    chat_path:          "/api/chat",
-    models_path:        "/api/tags",
-    auth_header_name:   "",
+    chat_path: "/api/chat",
+    models_path: "/api/tags",
+    auth_header_name: "",
     auth_header_prefix: "",
-    models_extractor:   local_models_extractor,
+    models_extractor: local_models_extractor,
 };
 
 fn endpoint_for(api_compatibility: &str) -> &'static ApiEndpointConfig {

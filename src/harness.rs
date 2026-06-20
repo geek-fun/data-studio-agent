@@ -259,7 +259,7 @@ async fn run_openai_stream(
 
                             while tool_calls.len() <= index {
                                 tool_calls.push(ChatCompletionMessageToolCall {
-                                    id:       String::new(),
+                                    id: String::new(),
                                     function: Default::default(),
                                 });
                             }
