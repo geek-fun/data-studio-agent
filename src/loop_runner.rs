@@ -161,6 +161,8 @@ pub fn build_llm_messages(
                     thinking: None,
                 });
             }
+        } else if role == "assistant" {
+            // Drop orphan assistant (tool_calls with no matching tool response).
             if !pending_tool_call_ids.is_empty()
                 && out.last().map(|m| m.role.as_str()) == Some("assistant")
             {
