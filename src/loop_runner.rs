@@ -778,6 +778,16 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                             consecutive_400_errors += 1;
                             eprintln!("[agent] LLM 400 tool message mismatch (attempt {}/{}), retrying with repair",
                                 consecutive_400_errors, MAX_CONSECUTIVE_400);
+                            let _ = inline_append(
+                                store,
+                                emitter,
+                                settings,
+                                &new_id(),
+                                session_id,
+                                "assistant",
+                                &e,
+                            )
+                            .await;
                             continue;
                         }
                         let _ = inline_append(
@@ -837,7 +847,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             return Ok(());
         }
 
-        // Runaway-loop guard: if the LLM emits the same tool-call set 3x, stop.
+        // Runaway-loop guard: if the LLM emits the same tool-call set 5x, stop.
         let iter_signature: String = {
             let mut sigs: Vec<String> =
                 acc.tool_calls.iter().map(|t| format!("{}:{}", t.name, t.arguments)).collect();
@@ -893,7 +903,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         if recent_tool_signatures.len() == MAX_RUNAWAY_ITERATIONS
             && recent_tool_signatures.iter().all(|s| s == &iter_signature)
         {
-            let stuck_msg = "Agent stopped: detected the same tool call repeating across 3 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
+            let stuck_msg = "Agent stopped: detected the same tool call repeating across 5 iterations with no progress. Try rephrasing your request or check the tool's previous results.";
             inline_append(store, emitter, settings, &new_id(), session_id, "assistant", stuck_msg)
                 .await?;
             emitter.emit("agent-loop-error", json!({"session_id": session_id, "error": stuck_msg}));
@@ -1488,6 +1498,15 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
 
         if let Err(e) = process_result {
             eprintln!("[agent] Failed to store tool result for '{}': {}", result.tool_name, e);
+            emitter.emit(
+                "agent-loop-tool-storage-error",
+                json!({
+                    "session_id": session_id,
+                    "tool_call_id": result.tool_call_id,
+                    "tool_name": result.tool_name,
+                    "error": e,
+                }),
+            );
         }
     }
 
