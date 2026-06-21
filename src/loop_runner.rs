@@ -1238,9 +1238,56 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                 let resolved_config = tool.resolved_config.clone();
 
                 futs.push(async move {
-                    let result =
-                        tool_executor.execute(&tool_name, &arguments, &resolved_config).await;
-                    ToolExecutionResult { index, tool_call_id, tool_name, result, cancelled: false }
+                    let tool_timeout = Duration::from_secs(TOOL_EXECUTION_TIMEOUT_SECS);
+                    let mut last_err = String::new();
+                    let mut envelope_out: Option<ToolEnvelope> = None;
+                    for attempt in 0..TOOL_MAX_ATTEMPTS {
+                        let exec_result = tokio::time::timeout(
+                            tool_timeout,
+                            tool_executor.execute(&tool_name, &arguments, &resolved_config),
+                        )
+                        .await;
+                        match exec_result {
+                            Ok(Ok(env)) => {
+                                envelope_out = Some(env);
+                                break;
+                            },
+                            Ok(Err(e)) => last_err = e,
+                            Err(_) => {
+                                last_err = format!(
+                                    "Tool execution timed out after {}s",
+                                    TOOL_EXECUTION_TIMEOUT_SECS
+                                );
+                            },
+                        }
+                        if attempt + 1 < TOOL_MAX_ATTEMPTS {
+                            emitter.emit(
+                                "agent-loop-tool-retry",
+                                json!({
+                                    "session_id": session_id,
+                                    "tool_call_id": tool_call_id,
+                                    "tool_name": tool_name,
+                                    "attempt": attempt + 2,
+                                    "max_attempts": TOOL_MAX_ATTEMPTS,
+                                    "delay_secs": TOOL_RETRY_DELAYS_SECS.get(attempt).copied().unwrap_or(5),
+                                }),
+                            );
+                            let delay =
+                                TOOL_RETRY_DELAYS_SECS.get(attempt).copied().unwrap_or(5);
+                            tokio::time::sleep(Duration::from_secs(delay)).await;
+                        }
+                    }
+                    let result = match envelope_out {
+                        Some(env) => Ok(env),
+                        None => Err(last_err),
+                    };
+                    ToolExecutionResult {
+                        index,
+                        tool_call_id,
+                        tool_name,
+                        result,
+                        cancelled: false,
+                    }
                 });
             }
 
