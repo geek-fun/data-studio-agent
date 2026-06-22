@@ -131,7 +131,54 @@ pub fn build_llm_messages(
             });
         }
     }
-    // Track tool_call_ids announced by the most recent assistant message.
+    fn flush_orphans(
+        out: &mut Vec<LlmMessage>,
+        pending: &mut HashSet<String>,
+    ) {
+        if pending.is_empty() {
+            return;
+        }
+        let mut orphaned_ids: Vec<String> = Vec::new();
+        let mut orphan_names: HashMap<String, String> = HashMap::new();
+        for msg in out.iter() {
+            if let Some(ref calls) = msg.tool_calls {
+                for tc in calls {
+                    if pending.contains(&tc.id) {
+                        orphaned_ids.push(tc.id.clone());
+                        orphan_names.insert(tc.id.clone(), tc.name.clone());
+                    }
+                }
+            }
+        }
+        for msg in out.iter_mut() {
+            if let Some(ref mut calls) = msg.tool_calls {
+                calls.retain(|tc| !pending.contains(&tc.id));
+            }
+        }
+        out.retain(|msg| {
+            if msg.role != "assistant" {
+                return true;
+            }
+            let has_content = !msg.text_content.trim().is_empty();
+            let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
+            has_content || has_tool_calls
+        });
+        for orphan_id in &orphaned_ids {
+            let name = orphan_names.get(orphan_id).cloned().unwrap_or_default();
+            out.push(LlmMessage {
+                role: "tool".into(),
+                text_content: format!(
+                    "Tool '{}' did not produce a result (execution timed out or was interrupted).",
+                    if name.is_empty() { "unknown" } else { &name }
+                ),
+                tool_calls: None,
+                tool_call_id: Some(orphan_id.clone()),
+                thinking: None,
+            });
+        }
+        pending.clear();
+    }
+
     let mut pending_tool_call_ids: HashSet<String> = HashSet::new();
 
     for (_id, role, content) in messages {
@@ -162,13 +209,7 @@ pub fn build_llm_messages(
                 });
             }
         } else if role == "assistant" {
-            // Drop orphan assistant (tool_calls with no matching tool response).
-            if !pending_tool_call_ids.is_empty()
-                && out.last().map(|m| m.role.as_str()) == Some("assistant")
-            {
-                out.pop();
-            }
-            pending_tool_call_ids.clear();
+            flush_orphans(&mut out, &mut pending_tool_call_ids);
             if let Ok(v) = serde_json::from_str::<Value>(content) {
                 if v.is_object() && (v.get("tool_calls").is_some() || v.get("content").is_some()) {
                     let text_content =
@@ -222,13 +263,7 @@ pub fn build_llm_messages(
                 thinking: None,
             });
         } else {
-            // Non-assistant/non-tool row: drop orphan assistant
-            if !pending_tool_call_ids.is_empty()
-                && out.last().map(|m| m.role.as_str()) == Some("assistant")
-            {
-                out.pop();
-            }
-            pending_tool_call_ids.clear();
+            flush_orphans(&mut out, &mut pending_tool_call_ids);
             if role == "system" {
                 if let Ok(v) = serde_json::from_str::<Value>(content) {
                     if v.get("_compact_boundary").and_then(|x| x.as_bool()).unwrap_or(false) {
@@ -253,19 +288,7 @@ pub fn build_llm_messages(
             });
         }
     }
-    if !pending_tool_call_ids.is_empty() {
-        if let Some(msg) = out.iter_mut().next_back() {
-            let should_clear = if let Some(ref mut calls) = msg.tool_calls {
-                calls.retain(|tc| !pending_tool_call_ids.contains(&tc.id));
-                calls.is_empty()
-            } else {
-                false
-            };
-            if should_clear {
-                msg.tool_calls = None;
-            }
-        }
-    }
+    flush_orphans(&mut out, &mut pending_tool_call_ids);
     out
 }
 
@@ -776,8 +799,6 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                         let is_tool_msg_mismatch = e.contains("insufficient tool messages");
                         if is_tool_msg_mismatch && consecutive_400_errors < MAX_CONSECUTIVE_400 {
                             consecutive_400_errors += 1;
-                            eprintln!("[agent] LLM 400 tool message mismatch (attempt {}/{}), retrying with repair",
-                                consecutive_400_errors, MAX_CONSECUTIVE_400);
                             let _ = inline_append(
                                 store,
                                 emitter,
@@ -1213,6 +1234,39 @@ struct ToolExecutionResult {
     cancelled: bool,
 }
 
+const TOOL_MSG_WRITE_RETRIES: usize = 3;
+const TOOL_MSG_WRITE_RETRY_DELAY_MS: &[u64] = &[100, 500, 1000];
+
+async fn write_tool_message_with_retry<S: SessionStore>(
+    store: &S,
+    session_id: &str,
+    tool_call_id: &str,
+    tool_name: &str,
+    content: &str,
+) -> Result<(), String> {
+    let mut last_err = String::new();
+    for attempt in 0..TOOL_MSG_WRITE_RETRIES {
+        let msg_id = new_id();
+        match store.write_message(&msg_id, session_id, "tool", content).await {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                last_err = e;
+                if attempt + 1 < TOOL_MSG_WRITE_RETRIES {
+                    let delay = TOOL_MSG_WRITE_RETRY_DELAY_MS
+                        .get(attempt)
+                        .copied()
+                        .unwrap_or(500);
+                    tokio::time::sleep(Duration::from_millis(delay)).await;
+                }
+            },
+        }
+    }
+    Err(format!(
+        "Failed to persist tool message for '{}' (call_id={}) after {} retries: {}",
+        tool_name, tool_call_id, TOOL_MSG_WRITE_RETRIES, last_err
+    ))
+}
+
 async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
     session_id: &str,
     _assistant_message_id: &str,
@@ -1445,7 +1499,14 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                     "name": result.tool_name,
                     "content": "Tool call was cancelled.",
                 });
-                store.write_message(&new_id(), session_id, "tool", &cancel_msg.to_string()).await?;
+                write_tool_message_with_retry(
+                    store,
+                    session_id,
+                    &result.tool_call_id,
+                    &result.tool_name,
+                    &cancel_msg.to_string(),
+                )
+                .await?;
             } else {
                 match &result.result {
                     Ok(envelope) => {
@@ -1466,9 +1527,14 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                             "name": result.tool_name,
                             "content": envelope.summary,
                         });
-                        store
-                            .write_message(&new_id(), session_id, "tool", &tool_msg.to_string())
-                            .await?;
+                        write_tool_message_with_retry(
+                            store,
+                            session_id,
+                            &result.tool_call_id,
+                            &result.tool_name,
+                            &tool_msg.to_string(),
+                        )
+                        .await?;
                     },
                     Err(e) => {
                         store.update_tool_call_status(&result.tool_call_id, "failed").await?;
@@ -1486,9 +1552,14 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                             "name": result.tool_name,
                             "content": e,
                         });
-                        store
-                            .write_message(&new_id(), session_id, "tool", &err_msg.to_string())
-                            .await?;
+                        write_tool_message_with_retry(
+                            store,
+                            session_id,
+                            &result.tool_call_id,
+                            &result.tool_name,
+                            &err_msg.to_string(),
+                        )
+                        .await?;
                     },
                 }
             }
@@ -1497,7 +1568,10 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
         .await;
 
         if let Err(e) = process_result {
-            eprintln!("[agent] Failed to store tool result for '{}': {}", result.tool_name, e);
+            eprintln!(
+                "[agent] Failed to store tool result for '{}': {} — injecting fallback message",
+                result.tool_name, e
+            );
             emitter.emit(
                 "agent-loop-tool-storage-error",
                 json!({
@@ -1650,4 +1724,195 @@ pub async fn get_agent_context_usage<S: SessionStore>(
         "should_compact": should_compact,
         "model": spec.model_id,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn msg(id: &str, role: &str, content: &str) -> (String, String, String) {
+        (id.to_string(), role.to_string(), content.to_string())
+    }
+
+    fn assistant_with_tool_calls(
+        id: &str,
+        tool_call_ids: &[(&str, &str)],
+    ) -> (String, String, String) {
+        let calls: Vec<Value> = tool_call_ids
+            .iter()
+            .map(|(cid, name)| {
+                json!({
+                    "id": cid,
+                    "type": "function",
+                    "function": { "name": name, "arguments": "{}" }
+                })
+            })
+            .collect();
+        let content = json!({
+            "content": "Running tools",
+            "tool_calls": calls
+        });
+        msg(id, "assistant", &content.to_string())
+    }
+
+    fn tool_result(id: &str, tool_call_id: &str, content: &str) -> (String, String, String) {
+        let content = json!({
+            "tool_call_id": tool_call_id,
+            "name": "test_tool",
+            "content": content
+        });
+        msg(id, "tool", &content.to_string())
+    }
+
+    #[test]
+    fn test_all_tool_calls_have_results() {
+        let messages = vec![
+            msg("u1", "user", "hello"),
+            assistant_with_tool_calls("a1", &[("call_1", "tool_a"), ("call_2", "tool_b")]),
+            tool_result("t1", "call_1", "result_a"),
+            tool_result("t2", "call_2", "result_b"),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let tool_msgs: Vec<&LlmMessage> = out.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tool_msgs.len(), 2);
+        assert_eq!(tool_msgs[0].tool_call_id.as_deref(), Some("call_1"));
+        assert_eq!(tool_msgs[1].tool_call_id.as_deref(), Some("call_2"));
+    }
+
+    #[test]
+    fn test_partial_tool_results_injects_synthetic_errors() {
+        let messages = vec![
+            msg("u1", "user", "hello"),
+            assistant_with_tool_calls(
+                "a1",
+                &[
+                    ("call_0", "tool_a"),
+                    ("call_1", "tool_b"),
+                    ("call_2", "tool_c"),
+                    ("call_3", "tool_d"),
+                ],
+            ),
+            tool_result("t0", "call_0", "result_a"),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let tool_msgs: Vec<&LlmMessage> = out.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tool_msgs.len(), 4);
+        assert_eq!(tool_msgs[0].tool_call_id.as_deref(), Some("call_0"));
+        assert_eq!(tool_msgs[0].text_content, "result_a");
+        assert_eq!(tool_msgs[1].tool_call_id.as_deref(), Some("call_1"));
+        assert!(tool_msgs[1].text_content.contains("did not produce a result"));
+        assert_eq!(tool_msgs[2].tool_call_id.as_deref(), Some("call_2"));
+        assert!(tool_msgs[2].text_content.contains("did not produce a result"));
+        assert_eq!(tool_msgs[3].tool_call_id.as_deref(), Some("call_3"));
+        assert!(tool_msgs[3].text_content.contains("did not produce a result"));
+    }
+
+    #[test]
+    fn test_zero_tool_results_injects_synthetic_errors() {
+        let messages = vec![
+            msg("u1", "user", "hello"),
+            assistant_with_tool_calls("a1", &[("call_1", "tool_a"), ("call_2", "tool_b")]),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let tool_msgs: Vec<&LlmMessage> = out.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tool_msgs.len(), 2);
+        assert!(tool_msgs[0].text_content.contains("did not produce a result"));
+        assert!(tool_msgs[1].text_content.contains("did not produce a result"));
+        let assistant_msgs: Vec<&LlmMessage> =
+            out.iter().filter(|m| m.role == "assistant").collect();
+        assert_eq!(assistant_msgs.len(), 1);
+        assert!(assistant_msgs[0].tool_calls.as_ref().is_some_and(|c| c.is_empty()));
+    }
+
+    #[test]
+    fn test_synthetic_error_includes_tool_name() {
+        let messages = vec![
+            msg("u1", "user", "hello"),
+            assistant_with_tool_calls("a1", &[("call_1", "sqlkit__execute_query")]),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let tool_msgs: Vec<&LlmMessage> = out.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tool_msgs.len(), 1);
+        assert!(tool_msgs[0].text_content.contains("sqlkit__execute_query"));
+    }
+
+    #[test]
+    fn test_assistant_with_content_and_orphaned_tool_calls_kept() {
+        let messages = vec![
+            msg("u1", "user", "hello"),
+            assistant_with_tool_calls("a1", &[("call_1", "tool_a")]),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let assistant_msgs: Vec<&LlmMessage> =
+            out.iter().filter(|m| m.role == "assistant").collect();
+        assert_eq!(assistant_msgs.len(), 1);
+        assert_eq!(assistant_msgs[0].text_content, "Running tools");
+    }
+
+    #[test]
+    fn test_multiple_assistant_rounds_orphans_repaired_with_synthetic() {
+        let messages = vec![
+            msg("u1", "user", "first question"),
+            assistant_with_tool_calls("a1", &[("call_1", "tool_a"), ("call_2", "tool_b")]),
+            tool_result("t1", "call_1", "result_a"),
+            msg("u2", "user", "second question"),
+            assistant_with_tool_calls("a2", &[("call_3", "tool_c")]),
+            tool_result("t2", "call_3", "result_c"),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let tool_msgs: Vec<&LlmMessage> = out.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tool_msgs.len(), 3);
+        assert_eq!(tool_msgs[0].tool_call_id.as_deref(), Some("call_1"));
+        assert_eq!(tool_msgs[0].text_content, "result_a");
+        assert_eq!(tool_msgs[1].tool_call_id.as_deref(), Some("call_2"));
+        assert!(tool_msgs[1].text_content.contains("did not produce a result"));
+        assert_eq!(tool_msgs[2].tool_call_id.as_deref(), Some("call_3"));
+        assert_eq!(tool_msgs[2].text_content, "result_c");
+    }
+
+    #[test]
+    fn test_system_prompt_prepended() {
+        let messages = vec![msg("u1", "user", "hello")];
+        let out = build_llm_messages(&messages, Some("You are a helpful assistant"));
+        assert_eq!(out[0].role, "system");
+        assert_eq!(out[0].text_content, "You are a helpful assistant");
+        assert_eq!(out[1].role, "user");
+    }
+
+    #[test]
+    fn test_broken_session_with_llm_errors_self_heals() {
+        let messages = vec![
+            msg("u1", "user", "create coffee shop tables"),
+            assistant_with_tool_calls(
+                "a1",
+                &[
+                    ("call_0", "sqlkit__execute_query"),
+                    ("call_1", "sqlkit__execute_query"),
+                    ("call_2", "sqlkit__execute_query"),
+                    ("call_3", "sqlkit__execute_query"),
+                ],
+            ),
+            tool_result("t0", "call_0", "{\"data\":{\"rows\":[]}}"),
+            msg("e1", "assistant", "LLM HTTP 400 Bad Request: insufficient tool messages"),
+            msg("e2", "assistant", "LLM HTTP 400 Bad Request: insufficient tool messages"),
+            msg("u2", "user", "continue, retry the failed ones"),
+        ];
+        let out = build_llm_messages(&messages, None);
+        let tool_msgs: Vec<&LlmMessage> = out.iter().filter(|m| m.role == "tool").collect();
+        assert_eq!(tool_msgs.len(), 4, "all 4 tool calls must have results");
+        assert_eq!(tool_msgs[0].tool_call_id.as_deref(), Some("call_0"));
+        assert_eq!(tool_msgs[0].text_content, "{\"data\":{\"rows\":[]}}");
+        for i in 1..4 {
+            assert!(
+                tool_msgs[i].text_content.contains("did not produce a result"),
+                "call_{} should have synthetic error",
+                i
+            );
+        }
+        let llm_error_msgs: Vec<&LlmMessage> = out
+            .iter()
+            .filter(|m| m.role == "assistant" && m.text_content.starts_with("LLM HTTP"))
+            .collect();
+        assert_eq!(llm_error_msgs.len(), 0, "LLM HTTP error messages must be filtered");
+    }
 }
