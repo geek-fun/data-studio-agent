@@ -1,6 +1,6 @@
 [package]
 name = "data-studio-agent"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Shared AI agent framework for database studio apps — LLM provider adapters, ReAct agent loop, context compaction, tool calling"
 license = "Apache-2.0"
