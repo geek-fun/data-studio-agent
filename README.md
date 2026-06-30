@@ -1,5 +1,11 @@
 # data-studio-agent
 
+[![GitHub Release](https://img.shields.io/github/v/release/geekfun/data-studio-agent?color=orange&label=release&style=for-the-badge&logo=github)](https://github.com/geekfun/data-studio-agent/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/geekfun/data-studio-agent/ci.yml?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/geekfun/data-studio-agent/actions/workflows/ci.yml)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg?style=for-the-badge&logo=apache)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/geekfun/data-studio-agent?style=for-the-badge&logo=github)](https://github.com/geekfun/data-studio-agent/stargazers)
+[![Rust](https://img.shields.io/badge/Rust-2021-edition?style=for-the-badge&logo=rust&logoColor=white&color=000000)](https://www.rust-lang.org/)
+
 Shared Rust agent framework extracted from [dockit](https://github.com/geekfun/dockit) and [sqlkit](https://github.com/geekfun/sqlkit). A single crate that provides a complete AI agent loop — provider adapters, streaming, tool calling, context compaction, conversation management — generic over pluggable storage and eventing.
 
 ## Install
