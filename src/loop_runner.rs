@@ -131,10 +131,7 @@ pub fn build_llm_messages(
             });
         }
     }
-    fn flush_orphans(
-        out: &mut Vec<LlmMessage>,
-        pending: &mut HashSet<String>,
-    ) {
+    fn flush_orphans(out: &mut Vec<LlmMessage>, pending: &mut HashSet<String>) {
         if pending.is_empty() {
             return;
         }
@@ -1252,10 +1249,7 @@ async fn write_tool_message_with_retry<S: SessionStore>(
             Err(e) => {
                 last_err = e;
                 if attempt + 1 < TOOL_MSG_WRITE_RETRIES {
-                    let delay = TOOL_MSG_WRITE_RETRY_DELAY_MS
-                        .get(attempt)
-                        .copied()
-                        .unwrap_or(500);
+                    let delay = TOOL_MSG_WRITE_RETRY_DELAY_MS.get(attempt).copied().unwrap_or(500);
                     tokio::time::sleep(Duration::from_millis(delay)).await;
                 }
             },
