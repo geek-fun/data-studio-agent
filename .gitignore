@@ -81,6 +81,7 @@ $RECYCLE.BIN/
 
 # OpenCode internal state
 .omo/
+.codegraph/
 
 # Temporary files
 /tmp/
