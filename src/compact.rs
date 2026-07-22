@@ -384,10 +384,13 @@ pub fn build_boundary_payload(
 async fn insert_compact_boundary<S: SessionStore>(
     store: &S,
     session_id: &str,
-    removed_ids: &[String],
+    _removed_ids: &[String],
     boundary_payload: &str,
 ) -> Result<(), String> {
-    store.delete_messages(session_id, removed_ids).await?;
+    // Messages before the boundary are NOT deleted — they are differentiated
+    // by the `_compact_boundary` tag. `build_llm_messages` filters them out
+    // by skipping everything before the last boundary. Keeping old messages
+    // preserves conversation history for UI display and audit trails.
     store.write_message(&new_id(), session_id, "system", boundary_payload).await?;
 
     Ok(())

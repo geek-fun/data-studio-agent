@@ -737,6 +737,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         }
 
         let history = ensure_tool_result_completeness(store, session_id).await?;
+        let history = strip_pre_compaction(history);
         let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
         let spec = resolve_model_spec_for_session(session_id, settings);
         let chat_msgs_values = llm_messages_to_values(&chat_msgs);
@@ -1319,6 +1320,29 @@ async fn ensure_tool_result_completeness<S: SessionStore>(
         return store.load_active_history(session_id).await;
     }
     Ok(history)
+}
+
+/// Strip messages before the last compact boundary from the history list.
+/// Compact boundaries are system messages with `_compact_boundary: true`
+/// inserted by compaction —  pre-compaction messages are summarized and
+/// represented by the boundary's summary.  Keeping them would send both
+/// the old messages AND the summary to the LLM, duplicating context.
+/// The boundary itself is kept so `build_llm_messages` can extract its
+/// summary as a system message.
+fn strip_pre_compaction(
+    mut history: Vec<(String, String, String)>,
+) -> Vec<(String, String, String)> {
+    let last_boundary = history.iter().rposition(|(_, role, content)| {
+        role == "system"
+            && serde_json::from_str::<Value>(content)
+                .ok()
+                .and_then(|v| v.get("_compact_boundary").and_then(|b| b.as_bool()))
+                .unwrap_or(false)
+    });
+    match last_boundary {
+        Some(idx) => history.split_off(idx),
+        None => history,
+    }
 }
 
 async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(

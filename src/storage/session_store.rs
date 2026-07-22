@@ -255,28 +255,4 @@ impl SessionStore for SqliteSessionStore {
         // prevents race between manual compact, in-loop compact, and background compact.
         crate::conversation::lock_for(session_id)
     }
-
-    async fn delete_messages(&self, session_id: &str, ids: &[String]) -> Result<(), String> {
-        if ids.is_empty() {
-            return Ok(());
-        }
-        let db = self.db.clone();
-        let sid = session_id.to_string();
-        let ids: Vec<String> = ids.to_vec();
-        tokio::task::spawn_blocking(move || -> Result<(), String> {
-            let conn = db.0.lock().map_err(|e| e.to_string())?;
-            let tx = conn.unchecked_transaction().map_err(|e| e.to_string())?;
-            for id in &ids {
-                tx.execute(
-                    "DELETE FROM agent_messages WHERE id = ?1 AND session_id = ?2",
-                    rusqlite::params![id, sid],
-                )
-                .map_err(|e| e.to_string())?;
-            }
-            tx.commit().map_err(|e| e.to_string())?;
-            Ok(())
-        })
-        .await
-        .map_err(|e| e.to_string())?
-    }
 }
