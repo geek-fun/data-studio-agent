@@ -63,11 +63,6 @@ pub trait SessionStore: Send + Sync {
     /// Load ALL messages for the session (ignoring compaction boundaries).
     async fn load_all_messages(&self, session_id: &str) -> Result<Vec<StoredMessage>, String>;
 
-    /// Delete the given messages from the session. Used by compaction to
-    /// remove summarized messages so they don't accumulate forever and
-    /// inflate context/token counts on subsequent LLM requests.
-    async fn delete_messages(&self, session_id: &str, ids: &[String]) -> Result<(), String>;
-
     /// Get the per-session compaction lock. Only one compaction runs per session at a time.
     fn compact_lock(&self, session_id: &str) -> Arc<AsyncMutex<()>>;
 }
