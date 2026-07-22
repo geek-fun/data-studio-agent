@@ -1545,85 +1545,84 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
     all_results.sort_by_key(|r| r.index);
 
     for result in &all_results {
-        let process_result: Result<(), String> = async {
-            if result.cancelled {
-                store.update_tool_call_status(&result.tool_call_id, "failed").await?;
-                let cancel_msg = json!({
+        // Each result is processed independently — a transient failure on
+        // insert_tool_result or update_tool_call_status must NOT prevent
+        // the critical tool message from being written.  Without the tool
+        // message, build_llm_messages orphans the tool_call_id → 400 error.
+        let write_result = if result.cancelled {
+            let _ = store.update_tool_call_status(&result.tool_call_id, "failed").await;
+            write_tool_message_with_retry(
+                store,
+                session_id,
+                &result.tool_call_id,
+                &result.tool_name,
+                &json!({
                     "tool_call_id": result.tool_call_id,
                     "name": result.tool_name,
                     "content": "Tool call was cancelled.",
-                });
-                write_tool_message_with_retry(
-                    store,
-                    session_id,
-                    &result.tool_call_id,
-                    &result.tool_name,
-                    &cancel_msg.to_string(),
-                )
-                .await?;
-            } else {
-                match &result.result {
-                    Ok(envelope) => {
-                        store
-                            .insert_tool_result(&result.tool_call_id, &envelope.full_result)
-                            .await?;
-                        store.update_tool_call_status(&result.tool_call_id, "completed").await?;
-                        emitter.emit(
-                            "agent-loop-tool-result",
-                            json!({
-                                "session_id": session_id,
-                                "tool_call_id": result.tool_call_id,
-                                "envelope": envelope,
-                            }),
-                        );
-                        let tool_msg = json!({
+                })
+                .to_string(),
+            )
+            .await
+        } else {
+            match &result.result {
+                Ok(envelope) => {
+                    let _ =
+                        store.insert_tool_result(&result.tool_call_id, &envelope.full_result).await;
+                    let _ = store.update_tool_call_status(&result.tool_call_id, "completed").await;
+                    emitter.emit(
+                        "agent-loop-tool-result",
+                        json!({
+                            "session_id": session_id,
+                            "tool_call_id": result.tool_call_id,
+                            "envelope": envelope,
+                        }),
+                    );
+                    write_tool_message_with_retry(
+                        store,
+                        session_id,
+                        &result.tool_call_id,
+                        &result.tool_name,
+                        &json!({
                             "tool_call_id": result.tool_call_id,
                             "name": result.tool_name,
                             "content": envelope.summary,
-                        });
-                        write_tool_message_with_retry(
-                            store,
-                            session_id,
-                            &result.tool_call_id,
-                            &result.tool_name,
-                            &tool_msg.to_string(),
-                        )
-                        .await?;
-                    },
-                    Err(e) => {
-                        store.update_tool_call_status(&result.tool_call_id, "failed").await?;
-                        emitter.emit(
-                            "agent-loop-tool-result",
-                            json!({
-                                "session_id": session_id,
-                                "tool_call_id": result.tool_call_id,
-                                "error": true,
-                                "envelope": { "summary": e },
-                            }),
-                        );
-                        let err_msg = json!({
+                        })
+                        .to_string(),
+                    )
+                    .await
+                },
+                Err(e) => {
+                    let _ = store.update_tool_call_status(&result.tool_call_id, "failed").await;
+                    emitter.emit(
+                        "agent-loop-tool-result",
+                        json!({
+                            "session_id": session_id,
+                            "tool_call_id": result.tool_call_id,
+                            "error": true,
+                            "envelope": { "summary": e },
+                        }),
+                    );
+                    write_tool_message_with_retry(
+                        store,
+                        session_id,
+                        &result.tool_call_id,
+                        &result.tool_name,
+                        &json!({
                             "tool_call_id": result.tool_call_id,
                             "name": result.tool_name,
                             "content": e,
-                        });
-                        write_tool_message_with_retry(
-                            store,
-                            session_id,
-                            &result.tool_call_id,
-                            &result.tool_name,
-                            &err_msg.to_string(),
-                        )
-                        .await?;
-                    },
-                }
+                        })
+                        .to_string(),
+                    )
+                    .await
+                },
             }
-            Ok(())
-        }
-        .await;
+        };
 
-        if let Err(e) = process_result {
+        if let Err(e) = write_result {
             eprintln!(
-                "[agent] Failed to store tool result for '{}': {} — writing synthetic fallback",
+                "[agent] Failed to persist tool message for '{}': {} — writing synthetic fallback",
                 result.tool_name, e
             );
             emitter.emit(
@@ -1635,11 +1634,6 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                     "error": e,
                 }),
             );
-            // Actually inject the synthetic fallback we promised in the log.
-            // This prevents the tool_call_id from being orphaned — without it,
-            // build_llm_messages' flush_orphans would strip the tool_call from
-            // the assistant message, creating a tool message with no matching
-            // preceding tool_calls → API 400.
             let fallback = json!({
                 "tool_call_id": result.tool_call_id,
                 "name": result.tool_name,
