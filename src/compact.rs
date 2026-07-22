@@ -281,6 +281,24 @@ pub fn target_split_keeping_pairs(messages: &[StoredMessage], keep_pairs: usize)
     0
 }
 
+/// Filter `StoredMessage` list to keep only messages from the last compact
+/// boundary onward.  Pre-compaction messages are summarized and represented
+/// by the boundary's system message — including them in the LLM request
+/// would duplicate context.  Old messages stay in the DB for history/audit.
+pub fn filter_to_post_boundary(messages: Vec<StoredMessage>) -> Vec<StoredMessage> {
+    let last_boundary = messages.iter().rposition(|msg| {
+        msg.role == "system"
+            && serde_json::from_str::<Value>(&msg.content)
+                .ok()
+                .and_then(|v| v.get("_compact_boundary").and_then(|b| b.as_bool()))
+                .unwrap_or(false)
+    });
+    match last_boundary {
+        Some(idx) => messages[idx..].to_vec(),
+        None => messages,
+    }
+}
+
 // ---------------------------------------------------------------------------
 // LLM summarization
 // ---------------------------------------------------------------------------
