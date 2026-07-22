@@ -771,8 +771,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             return Ok(());
         }
         let raw_tools = settings.get("tools");
-        let body =
-            formatter.build_request(model, system_prompt_str, &chat_msgs, raw_tools, true);
+        let body = formatter.build_request(model, system_prompt_str, &chat_msgs, raw_tools, true);
         // Emit waiting-for-LLM event
         emitter.emit(
             "agent-loop-waiting-llm",
