@@ -110,11 +110,23 @@ async fn emit_usage<S: SessionStore, E: EventEmitter>(
     let Ok(messages) = store.load_messages_for_compact(session_id).await else {
         return;
     };
+    // Only count messages after the last compact boundary (same as
+    // `strip_pre_compaction` in loop_runner.rs).  Old pre-compaction
+    // messages are NOT deleted — they stay in the DB for history/audit —
+    // but they SHOULD NOT be counted in the context usage because the
+    // actual LLM request only sees the summary + post-boundary messages.
+    let visible: &[StoredMessage] = {
+        let last_boundary = messages.iter().rposition(is_compact_boundary);
+        match last_boundary {
+            Some(idx) => &messages[idx..],
+            None => &messages,
+        }
+    };
     let spec = resolve_model_spec_for_session(session_id, settings);
-    let decision = evaluate(&messages, &spec);
+    let decision = evaluate(visible, &spec);
     let system_prompt = settings.get("systemPrompt").and_then(|v| v.as_str());
     let tools = settings.get("tools");
-    let used_tokens = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let used_tokens = count_projected_tokens(visible, system_prompt, tools, &spec);
     let should_compact = used_tokens >= decision.trigger_at;
     emitter.emit(
         "agent-context-usage",
