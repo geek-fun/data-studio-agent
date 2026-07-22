@@ -1796,11 +1796,27 @@ pub async fn compact_agent_session<S: SessionStore, E: EventEmitter>(
     }
     emit_context_usage(store, emitter, session_id, settings).await;
     let messages = store.load_messages_for_compact(session_id).await?;
+    // Filter to post-boundary messages — same as emit_context_usage above.
+    // The frontend reads this return value directly (context-indicator.vue:180)
+    // as usage.value, which overwrites the SSE event, so it MUST be filtered.
+    let visible: Vec<StoredMessage> = {
+        let last_boundary = messages.iter().rposition(|msg| {
+            msg.role == "system"
+                && serde_json::from_str::<Value>(&msg.content)
+                    .ok()
+                    .and_then(|v| v.get("_compact_boundary").and_then(|b| b.as_bool()))
+                    .unwrap_or(false)
+        });
+        match last_boundary {
+            Some(idx) => messages[idx..].to_vec(),
+            None => messages,
+        }
+    };
     let spec = resolve_model_spec_for_session(session_id, settings);
-    let decision = evaluate(&messages, &spec);
+    let decision = evaluate(&visible, &spec);
     let system_prompt = settings_get_str(settings, "systemPrompt");
     let tools = settings.get("tools");
-    let used = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let used = count_projected_tokens(&visible, system_prompt, tools, &spec);
     let should_compact = used >= decision.trigger_at;
     Ok(json!({
         "session_id": session_id,
