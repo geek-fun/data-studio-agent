@@ -26,7 +26,8 @@ use crate::{
     },
     common::http_client::create_http_client,
     compact::{
-        count_projected_tokens, evaluate, resolve_model_spec_for_session, run_compact_manual,
+        count_projected_tokens, evaluate, filter_to_post_boundary, resolve_model_spec_for_session,
+        run_compact_manual,
     },
     conversation::prepare_for_llm,
     loop_runner_support::new_id,
@@ -501,28 +502,12 @@ async fn emit_context_usage<S: SessionStore, E: EventEmitter>(
     let Ok(messages) = store.load_messages_for_compact(session_id).await else {
         return;
     };
-    // Same boundary-aware filtering as conversation::emit_usage — count only
-    // messages after the last compact boundary, because that's what the LLM
-    // actually receives. Pre-compaction messages stay in the DB for history
-    // but must not inflate the UI context percentage.
-    let visible: &[StoredMessage] = {
-        let last_boundary = messages.iter().rposition(|msg| {
-            msg.role == "system"
-                && serde_json::from_str::<Value>(&msg.content)
-                    .ok()
-                    .and_then(|v| v.get("_compact_boundary").and_then(|b| b.as_bool()))
-                    .unwrap_or(false)
-        });
-        match last_boundary {
-            Some(idx) => &messages[idx..],
-            None => &messages,
-        }
-    };
+    let visible = filter_to_post_boundary(messages);
     let spec = resolve_model_spec_for_session(session_id, settings);
-    let decision = evaluate(visible, &spec);
+    let decision = evaluate(&visible, &spec);
     let system_prompt = settings_get_str(settings, "systemPrompt");
     let tools = settings.get("tools");
-    let used = count_projected_tokens(visible, system_prompt, tools, &spec);
+    let used = count_projected_tokens(&visible, system_prompt, tools, &spec);
     let should_compact = used >= decision.trigger_at;
     emitter.emit(
         "agent-context-usage",
@@ -1796,22 +1781,7 @@ pub async fn compact_agent_session<S: SessionStore, E: EventEmitter>(
     }
     emit_context_usage(store, emitter, session_id, settings).await;
     let messages = store.load_messages_for_compact(session_id).await?;
-    // Filter to post-boundary messages — same as emit_context_usage above.
-    // The frontend reads this return value directly (context-indicator.vue:180)
-    // as usage.value, which overwrites the SSE event, so it MUST be filtered.
-    let visible: Vec<StoredMessage> = {
-        let last_boundary = messages.iter().rposition(|msg| {
-            msg.role == "system"
-                && serde_json::from_str::<Value>(&msg.content)
-                    .ok()
-                    .and_then(|v| v.get("_compact_boundary").and_then(|b| b.as_bool()))
-                    .unwrap_or(false)
-        });
-        match last_boundary {
-            Some(idx) => messages[idx..].to_vec(),
-            None => messages,
-        }
-    };
+    let visible = filter_to_post_boundary(messages);
     let spec = resolve_model_spec_for_session(session_id, settings);
     let decision = evaluate(&visible, &spec);
     let system_prompt = settings_get_str(settings, "systemPrompt");
@@ -1841,11 +1811,12 @@ pub async fn get_agent_context_usage<S: SessionStore>(
     store: &S,
 ) -> Result<Value, String> {
     let messages = store.load_messages_for_compact(session_id).await?;
+    let visible = filter_to_post_boundary(messages);
     let spec = resolve_model_spec_for_session(session_id, settings);
-    let decision = evaluate(&messages, &spec);
+    let decision = evaluate(&visible, &spec);
     let system_prompt = settings_get_str(settings, "systemPrompt");
     let tools = settings.get("tools");
-    let used = count_projected_tokens(&messages, system_prompt, tools, &spec);
+    let used = count_projected_tokens(&visible, system_prompt, tools, &spec);
     let should_compact = used >= decision.trigger_at;
     Ok(json!({
         "session_id": session_id,
