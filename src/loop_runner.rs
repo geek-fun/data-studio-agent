@@ -147,19 +147,10 @@ pub fn build_llm_messages(
                 }
             }
         }
-        for msg in out.iter_mut() {
-            if let Some(ref mut calls) = msg.tool_calls {
-                calls.retain(|tc| !pending.contains(&tc.id));
-            }
-        }
-        out.retain(|msg| {
-            if msg.role != "assistant" {
-                return true;
-            }
-            let has_content = !msg.text_content.trim().is_empty();
-            let has_tool_calls = msg.tool_calls.as_ref().is_some_and(|c| !c.is_empty());
-            has_content || has_tool_calls
-        });
+        // Do NOT strip orphaned tool_calls from the preceding assistant message.
+        // The synthetic tool messages below reference those tool_call_ids — if
+        // we strip them, the tool messages become orphaned (no matching
+        // preceding assistant with tool_calls), causing API 400 errors.
         for orphan_id in &orphaned_ids {
             let name = orphan_names.get(orphan_id).cloned().unwrap_or_default();
             out.push(LlmMessage {
@@ -678,8 +669,12 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         .unwrap_or(DEFAULT_TOKEN_BUDGET);
     let loop_started_at = std::time::Instant::now();
 
-    // Create formatter based on apiCompatibility setting
-    let openai_formatter = OpenAIChatFormatter;
+    // Create formatter based on apiCompatibility setting.
+    // DeepSeek requires reasoning_content replay for tool-call turns;
+    // other providers (OpenAI o1/o3) reject it.
+    let provider = settings_get_str(settings, "provider").unwrap_or("").to_lowercase();
+    let is_deepseek = provider.contains("deep_seek") || provider.contains("deepseek");
+    let openai_formatter = OpenAIChatFormatter { replay_reasoning: is_deepseek };
     let anthropic_formatter = AnthropicChatFormatter;
     let api_compat = settings_get_str(settings, "apiCompatibility").unwrap_or("openai-compatible");
     let formatter: &dyn ChatFormatter = match api_compat {
@@ -741,7 +736,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             }
         }
 
-        let history = store.load_active_history(session_id).await?;
+        let history = ensure_tool_result_completeness(store, session_id).await?;
         let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
         let spec = resolve_model_spec_for_session(session_id, settings);
         let chat_msgs_values = llm_messages_to_values(&chat_msgs);
@@ -1261,6 +1256,71 @@ async fn write_tool_message_with_retry<S: SessionStore>(
     ))
 }
 
+/// Verify every `tool_call_id` in the most recent assistant message with
+/// tool_calls has a matching tool result message in the DB. Missing ones get
+/// synthetic error tool messages written. Returns the (possibly amended)
+/// history so callers don't need a second `load_active_history` call.
+async fn ensure_tool_result_completeness<S: SessionStore>(
+    store: &S,
+    session_id: &str,
+) -> Result<Vec<(String, String, String)>, String> {
+    let history = store.load_active_history(session_id).await?;
+
+    let last_assistant = history.iter().rev().find(|(_, role, content)| {
+        role == "assistant" && serde_json::from_str::<Value>(content).ok().is_some()
+    });
+
+    let Some((_, _, content)) = last_assistant else {
+        return Ok(history);
+    };
+
+    let v: Value = serde_json::from_str(content).map_err(|e| e.to_string())?;
+    let tool_call_ids: Vec<String> = v
+        .get("tool_calls")
+        .and_then(|t| t.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|c| {
+                    c.get("id")
+                        .and_then(|x| x.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string())
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if tool_call_ids.is_empty() {
+        return Ok(history);
+    }
+
+    let known: HashSet<String> = history
+        .iter()
+        .filter(|(_, role, _)| role == "tool")
+        .filter_map(|(_, _, content)| {
+            serde_json::from_str::<Value>(content)
+                .ok()
+                .and_then(|v| v.get("tool_call_id").and_then(|x| x.as_str()).map(|s| s.to_string()))
+        })
+        .collect();
+
+    let mut amended = false;
+    for missing in tool_call_ids.iter().filter(|id| !known.contains(*id)) {
+        let fallback = json!({
+            "tool_call_id": missing,
+            "name": "unknown",
+            "content": "Tool result was not persisted (recovered by integrity check).",
+        });
+        let _ = store.write_message(&new_id(), session_id, "tool", &fallback.to_string()).await;
+        amended = true;
+    }
+
+    if amended {
+        return store.load_active_history(session_id).await;
+    }
+    Ok(history)
+}
+
 async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
     session_id: &str,
     _assistant_message_id: &str,
@@ -1563,7 +1623,7 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
 
         if let Err(e) = process_result {
             eprintln!(
-                "[agent] Failed to store tool result for '{}': {} — injecting fallback message",
+                "[agent] Failed to store tool result for '{}': {} — writing synthetic fallback",
                 result.tool_name, e
             );
             emitter.emit(
@@ -1575,6 +1635,20 @@ async fn execute_phase2_3<S: SessionStore, E: EventEmitter>(
                     "error": e,
                 }),
             );
+            // Actually inject the synthetic fallback we promised in the log.
+            // This prevents the tool_call_id from being orphaned — without it,
+            // build_llm_messages' flush_orphans would strip the tool_call from
+            // the assistant message, creating a tool message with no matching
+            // preceding tool_calls → API 400.
+            let fallback = json!({
+                "tool_call_id": result.tool_call_id,
+                "name": result.tool_name,
+                "content": format!(
+                    "Tool '{}' result could not be persisted (storage error): {}",
+                    result.tool_name, e
+                ),
+            });
+            let _ = store.write_message(&new_id(), session_id, "tool", &fallback.to_string()).await;
         }
     }
 
@@ -1815,7 +1889,13 @@ mod tests {
         let assistant_msgs: Vec<&LlmMessage> =
             out.iter().filter(|m| m.role == "assistant").collect();
         assert_eq!(assistant_msgs.len(), 1);
-        assert!(assistant_msgs[0].tool_calls.as_ref().is_some_and(|c| c.is_empty()));
+        // With Fix 2, tool_calls are PRESERVED on the assistant message even
+        // when all results are missing — the synthetic tool messages below
+        // reference these tool_call_ids so the API request is valid.
+        assert!(
+            assistant_msgs[0].tool_calls.as_ref().is_some_and(|c| c.len() == 2),
+            "tool_calls must be preserved so synthetic tool messages have matching ids"
+        );
     }
 
     #[test]

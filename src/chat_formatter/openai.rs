@@ -2,7 +2,34 @@ use serde_json::{json, Value};
 
 use super::{ChatFormatter, LlmMessage, StreamDelta, StreamToolCallDelta};
 
-pub struct OpenAIChatFormatter;
+pub struct OpenAIChatFormatter {
+    /// Whether to echo back `reasoning_content` from the prior assistant
+    /// message into the next request body.
+    ///
+    /// - **DeepSeek** (deepseek-chat, deepseek-v3/v4): REQUIRED for tool-call
+    ///   turns — the API returns 400 if reasoning_content is missing on a
+    ///   subsequent request that references prior tool_calls.
+    /// - **OpenAI Chat Completions** (o1, o3): NOT accepted — OpenAI rejects
+    ///   requests that include `reasoning_content`. Reasoning state is
+    ///   managed via the Responses API (`previous_response_id`).
+    /// - **Anthropic**: has its own `AnthropicChatFormatter` — not affected.
+    ///
+    /// Default: `false` — opt-in per provider; matches the OpenAI Agents SDK
+    /// `should_replay_reasoning_content` hook pattern.
+    pub replay_reasoning: bool,
+}
+
+impl OpenAIChatFormatter {
+    pub fn new() -> Self {
+        Self { replay_reasoning: false }
+    }
+}
+
+impl Default for OpenAIChatFormatter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ChatFormatter for OpenAIChatFormatter {
     fn chat_path(&self) -> &str {
@@ -30,9 +57,11 @@ impl ChatFormatter for OpenAIChatFormatter {
                 },
                 "assistant" => {
                     let mut m = json!({"role": "assistant", "content": msg.text_content});
-                    if let Some(ref thinking) = msg.thinking {
-                        if !thinking.is_empty() {
-                            m["reasoning_content"] = Value::String(thinking.clone());
+                    if self.replay_reasoning {
+                        if let Some(ref thinking) = msg.thinking {
+                            if !thinking.is_empty() {
+                                m["reasoning_content"] = Value::String(thinking.clone());
+                            }
                         }
                     }
                     if let Some(ref calls) = msg.tool_calls {
@@ -138,9 +167,13 @@ mod tests {
     use super::*;
     use crate::chat_formatter::{LlmMessage, LlmToolCall};
 
+    fn make_fmt() -> OpenAIChatFormatter {
+        OpenAIChatFormatter::new()
+    }
+
     #[test]
     fn test_build_request_with_system_and_user() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let msgs = vec![LlmMessage {
             role: "user".into(),
             text_content: "Hello".into(),
@@ -159,7 +192,7 @@ mod tests {
 
     #[test]
     fn test_build_request_no_system_prompt() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let msgs = vec![LlmMessage {
             role: "user".into(),
             text_content: "Hi".into(),
@@ -175,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_build_request_with_tool_call() {
-        let f = OpenAIChatFormatter;
+        let f = OpenAIChatFormatter { replay_reasoning: true };
         let msgs = vec![LlmMessage {
             role: "assistant".into(),
             text_content: "Let me search".into(),
@@ -196,7 +229,7 @@ mod tests {
 
     #[test]
     fn test_build_request_with_tools_param() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let msgs = vec![LlmMessage {
             role: "user".into(),
             text_content: "Search for X".into(),
@@ -215,7 +248,7 @@ mod tests {
 
     #[test]
     fn test_build_request_tool_result() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let msgs = vec![LlmMessage {
             role: "tool".into(),
             text_content: "Result data".into(),
@@ -230,7 +263,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_content_delta() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let data = r#"{"choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}"#;
         let delta = f.parse_chunk(data).unwrap();
         assert_eq!(delta.content_delta, "Hello");
@@ -239,7 +272,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_thinking_delta() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let data = r#"{"choices":[{"index":0,"delta":{"reasoning_content":"thinking..."},"finish_reason":null}]}"#;
         let delta = f.parse_chunk(data).unwrap();
         assert_eq!(delta.thinking_delta, "thinking...");
@@ -247,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_tool_calls() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let data = r#"{"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"search","arguments":"{\"q\":\"test\"}"}}]},"finish_reason":"tool_calls"}]}"#;
         let delta = f.parse_chunk(data).unwrap();
         assert_eq!(delta.tool_call_deltas.len(), 1);
@@ -257,14 +290,14 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_done() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let delta = f.parse_chunk("[DONE]").unwrap();
         assert_eq!(delta.finish_reason, Some("stop".into()));
     }
 
     #[test]
     fn test_parse_chunk_finish_reason() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let data = r#"{"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}"#;
         let delta = f.parse_chunk(data).unwrap();
         assert_eq!(delta.finish_reason, Some("stop".into()));
@@ -272,7 +305,7 @@ mod tests {
 
     #[test]
     fn test_parse_chunk_invalid_json() {
-        let f = OpenAIChatFormatter;
+        let f = make_fmt();
         let result = f.parse_chunk("not json");
         assert!(result.is_err());
     }
