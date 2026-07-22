@@ -316,7 +316,7 @@ pub async fn summarize_with_llm(
         .map(|m| json!({"role": m.role, "content": m.content}))
         .collect();
 
-    let formatter = OpenAIChatFormatter;
+    let formatter = OpenAIChatFormatter::new();
     let model = settings.get("model").and_then(|v| v.as_str()).unwrap_or("gpt-4o-mini");
     let user_msg_text = serde_json::to_string(&chat_msgs).unwrap_or_default();
     let llm_messages = vec![LlmMessage {
@@ -384,9 +384,10 @@ pub fn build_boundary_payload(
 async fn insert_compact_boundary<S: SessionStore>(
     store: &S,
     session_id: &str,
-    _removed_ids: &[String],
+    removed_ids: &[String],
     boundary_payload: &str,
 ) -> Result<(), String> {
+    store.delete_messages(session_id, removed_ids).await?;
     store.write_message(&new_id(), session_id, "system", boundary_payload).await?;
 
     Ok(())
