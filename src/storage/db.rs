@@ -16,8 +16,10 @@ pub fn open(path: &Path) -> Result<AgentDb, String> {
     }
     let conn =
         rusqlite::Connection::open(path).map_err(|e| format!("Failed to open database: {}", e))?;
-    conn.execute_batch("PRAGMA foreign_keys = ON;")
-        .map_err(|e| format!("Failed to set pragma: {}", e))?;
+    conn.execute_batch(
+        "PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys = ON;",
+    )
+    .map_err(|e| format!("Failed to set pragma: {}", e))?;
     Ok(AgentDb(Arc::new(Mutex::new(conn))))
 }
 
