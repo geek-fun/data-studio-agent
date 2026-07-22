@@ -56,6 +56,16 @@ const RETRYABLE_ERROR_TYPES: &[&str] =
 const FATAL_ERROR_TYPES: &[&str] =
     &["insufficient_quota", "invalid_request_error", "authentication_error"];
 
+/// Instruction appended to the system prompt to encourage the model to
+/// emit all independent tool calls in a single response rather than one
+/// at a time.  Models that support batch tool calling (GPT-4o, Claude 3.5+)
+/// usually follow this natively; DeepSeek v4 thinking mode tends to emit
+/// single calls per response without it.
+const TOOL_CALL_BATCHING_INSTRUCTION: &str =
+    "\n\nWhen you need to call tools, emit ALL independent tool calls in a single response. \
+     Do NOT call one tool at a time — batch them together. \
+     You can execute multiple tools in parallel when they don't depend on each other.";
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -629,7 +639,11 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
     let user_id = new_id();
     inline_append(store, emitter, settings, &user_id, session_id, "user", user_message).await?;
 
-    let system_prompt = settings_get_str(settings, "systemPrompt").map(|s| s.to_string());
+    let batching_instruction = TOOL_CALL_BATCHING_INSTRUCTION;
+    let system_prompt = settings_get_str(settings, "systemPrompt").map_or_else(
+        || batching_instruction.to_string(),
+        |s| format!("{}\n{}", s, batching_instruction),
+    );
 
     let base_url = get_base_url(settings);
     let headers = build_headers(settings)?;
@@ -738,7 +752,8 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
 
         let history = ensure_tool_result_completeness(store, session_id).await?;
         let history = strip_pre_compaction(history);
-        let chat_msgs = build_llm_messages(&history, system_prompt.as_deref());
+        let system_prompt_str: Option<&str> = Some(&system_prompt);
+        let chat_msgs = build_llm_messages(&history, system_prompt_str);
         let spec = resolve_model_spec_for_session(session_id, settings);
         let chat_msgs_values = llm_messages_to_values(&chat_msgs);
         cumulative_input_tokens =
@@ -757,7 +772,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
         }
         let raw_tools = settings.get("tools");
         let body =
-            formatter.build_request(model, system_prompt.as_deref(), &chat_msgs, raw_tools, true);
+            formatter.build_request(model, system_prompt_str, &chat_msgs, raw_tools, true);
         // Emit waiting-for-LLM event
         emitter.emit(
             "agent-loop-waiting-llm",
