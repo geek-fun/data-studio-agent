@@ -21,6 +21,8 @@ pub enum RiskLevel {
 pub enum SourceKind {
     /// Database type string, e.g. "ELASTICSEARCH", "DYNAMODB", "MONGODB", "POSTGRESQL", etc.
     Database(&'static str),
+    /// Matches any SQL database type (PostgreSQL, MySQL, SQL Server, SQLite, ClickHouse, etc.)
+    SqlDatabase,
     /// Reads from local files — no connection config needed
     File,
     /// Reads local application state — always available
@@ -33,6 +35,17 @@ impl SourceKind {
     pub fn matches_db_type(&self, db_type: &str) -> bool {
         match self {
             SourceKind::Database(t) => t.eq_ignore_ascii_case(db_type),
+            SourceKind::SqlDatabase => matches!(
+                db_type.to_uppercase().as_str(),
+                "POSTGRESQL"
+                    | "MYSQL"
+                    | "SQLSERVER"
+                    | "SQLITE"
+                    | "CLICKHOUSE"
+                    | "MARIADB"
+                    | "TIDB"
+                    | "COCKROACHDB"
+            ),
             _ => false,
         }
     }

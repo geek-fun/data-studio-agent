@@ -76,10 +76,15 @@ impl CapabilityRegistry {
     }
 }
 
-/// Initialize the global capability registry.
-/// Call ONCE during app startup. Consumers register capabilities via registry().register().
-pub fn init_registry() {
-    REGISTRY.set(CapabilityRegistry::new()).ok();
+/// Initialize the global capability registry with app-specific registrations.
+/// Call ONCE during app startup with the registration functions for this app.
+/// Each function receives a mutable reference to the registry to register capabilities.
+pub fn init_registry(register_fns: &[fn(&mut CapabilityRegistry)]) {
+    let mut reg = CapabilityRegistry::new();
+    for f in register_fns {
+        f(&mut reg);
+    }
+    REGISTRY.set(reg).ok();
 }
 
 /// Invoke a capability by name with the given arguments and optional
@@ -210,6 +215,32 @@ mod tests {
         assert!(names.contains(&"ui_cap"));
         assert!(names.contains(&"both_cap"));
         assert!(!names.contains(&"agent_cap"));
+    }
+
+    #[test]
+    fn test_matching_sources_sqldatabase_matches_sql_types() {
+        let mut reg = CapabilityRegistry::new();
+        reg.register(make_cap("sql_tool", SourceKind::SqlDatabase, &["agent"]));
+
+        let pg = reg.matching_sources(&["POSTGRESQL".to_string()]);
+        assert_eq!(pg.len(), 1);
+        assert_eq!(pg[0].name, "sql_tool");
+
+        let mysql = reg.matching_sources(&["MYSQL".to_string()]);
+        assert_eq!(mysql.len(), 1);
+
+        let sqlite = reg.matching_sources(&["SQLITE".to_string()]);
+        assert_eq!(sqlite.len(), 1);
+
+        let sqlserver = reg.matching_sources(&["SQLSERVER".to_string()]);
+        assert_eq!(sqlserver.len(), 1);
+
+        let clickhouse = reg.matching_sources(&["CLICKHOUSE".to_string()]);
+        assert_eq!(clickhouse.len(), 1);
+
+        // Should NOT match non-SQL types
+        let es = reg.matching_sources(&["ELASTICSEARCH".to_string()]);
+        assert_eq!(es.len(), 0);
     }
 
     #[test]
