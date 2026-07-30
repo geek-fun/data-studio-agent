@@ -3,15 +3,19 @@ name: Release
 on:
   push:
     branches: [master]
+    tags:
+      - 'mcp-v*'
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# ── Rust crate release ────────────────────────────────────
+
 jobs:
   check-version:
-    name: Check version
+    name: Check Rust version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -34,8 +38,8 @@ jobs:
             echo "is_new=true" >> $GITHUB_OUTPUT
           fi
 
-  release:
-    name: Release v${{ needs.check-version.outputs.version }}
+  rust-release:
+    name: Release Rust crate v${{ needs.check-version.outputs.version }}
     needs: check-version
     if: needs.check-version.outputs.is_new == 'true'
     runs-on: ubuntu-latest
@@ -71,7 +75,76 @@ jobs:
               repo: context.repo.repo,
               tag_name: tag,
               name: tag,
-              body: `## Install\n\n\`\`\`toml\n[dependencies]\ndata-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v${process.env.VERSION}" }\n\`\`\`\n\nSee the [repository](https://github.com/geekfun/data-studio-agent) for documentation.`,
+              body: `## Install\n\n\`\`\`toml\n[dependencies]\ndata-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "${tag}" }\n\`\`\`\n\nSee the [repository](https://github.com/geekfun/data-studio-agent) for documentation.`,
+              draft: false,
+              prerelease: false,
+            });
+
+  # ── MCP npm package release ─────────────────────────────
+  mcp-release:
+    name: Release MCP ${{ github.ref_name }}
+    if: startsWith(github.ref, 'refs/tags/mcp-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'npm'
+          cache-dependency-path: packages/data-studio-mcp/package-lock.json
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#mcp-}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+
+      - name: Install dependencies
+        working-directory: packages/data-studio-mcp
+        run: npm ci
+
+      - name: Build
+        working-directory: packages/data-studio-mcp
+        run: npm run build
+
+      - name: Verify version matches tag
+        working-directory: packages/data-studio-mcp
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.version.outputs.version }}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "ERROR: package.json version ($PKG_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+          echo "Version match: $PKG_VERSION"
+
+      - name: Publish to npm
+        working-directory: packages/data-studio-mcp
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create GitHub release
+        uses: actions/github-script@v7
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '');
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `@geekfun/data-studio-mcp v${process.env.VERSION}`,
+              body: `## Install\n\n\`\`\`bash\nnpx @geekfun/data-studio-mcp\n\`\`\`\n\nRequires [dockit](https://github.com/geek-fun/dockit) or [sqlkit](https://github.com/geek-fun/sqlkit) running on the same machine.`,
               draft: false,
               prerelease: false,
             });

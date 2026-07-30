@@ -95,31 +95,6 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
-  # ── TypeScript package (data-studio-mcp) ────────────────
-  typecheck-mcp:
-    name: Typecheck MCP
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-          cache-dependency-path: packages/data-studio-mcp/package-lock.json
-
-      - name: Install dependencies
-        working-directory: packages/data-studio-mcp
-        run: npm ci
-
-      - name: Typecheck
-        working-directory: packages/data-studio-mcp
-        run: npx tsc --noEmit
-
-      - name: Build
-        working-directory: packages/data-studio-mcp
-        run: npm run build
-
   # ── Security audit ──────────────────────────────────────
   audit:
     name: Security audit
