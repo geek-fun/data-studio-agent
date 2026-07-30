@@ -59,6 +59,10 @@ jobs:
         working-directory: packages/data-studio-mcp
         run: npm ci
 
+      - name: Lint check
+        working-directory: packages/data-studio-mcp
+        run: npm run lint:check
+
       - name: Typecheck
         working-directory: packages/data-studio-mcp
         run: npx tsc --noEmit

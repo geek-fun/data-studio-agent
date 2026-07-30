@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildToolCatalog } from '../tools.js';
 
-const mockBackends = [
+const _mockBackends = [
   {
     name: 'dockit' as const,
     port: 9120,

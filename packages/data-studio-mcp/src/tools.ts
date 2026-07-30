@@ -19,9 +19,10 @@ export interface McpToolDef {
  * to create unique MCP tool names. The mapping is returned so the call
  * handler can reverse-lookup the target backend and internal name.
  */
-export async function buildToolCatalog(
-  backends: BackendInfo[],
-): Promise<{ tools: McpToolDef[]; routeMap: Map<string, { backendName: string; internalName: string }> }> {
+export async function buildToolCatalog(backends: BackendInfo[]): Promise<{
+  tools: McpToolDef[];
+  routeMap: Map<string, { backendName: string; internalName: string }>;
+}> {
   const tools: McpToolDef[] = [];
   const routeMap = new Map<string, { backendName: string; internalName: string }>();
 

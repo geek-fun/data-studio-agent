@@ -21,9 +21,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.error(
-    `Discovered backends: ${backends.map((b) => `${b.name} (${b.baseUrl})`).join(', ')}`,
-  );
+  console.error(`Discovered backends: ${backends.map(b => `${b.name} (${b.baseUrl})`).join(', ')}`);
 
   const { tools, routeMap } = await buildToolCatalog(backends);
   if (tools.length === 0) {
@@ -33,9 +31,7 @@ async function main(): Promise<void> {
 
   console.error(`Loaded ${tools.length} tools from ${backends.length} backend(s).`);
 
-  const clients = new Map<string, BackendClient>(
-    backends.map((b) => [b.name, new BackendClient(b)]),
-  );
+  const clients = new Map<string, BackendClient>(backends.map(b => [b.name, new BackendClient(b)]));
 
   const server = new Server(
     { name: 'data-studio-mcp', version: '0.1.0' },
@@ -44,21 +40,20 @@ async function main(): Promise<void> {
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: tools.map((t) => ({
+      tools: tools.map(t => ({
         name: t.name,
         description: t.description,
         inputSchema: {
           type: 'object' as const,
-          properties: (t.inputSchema as Record<string, unknown>)
-            ?.properties as Record<string, object> | undefined,
-          required: (t.inputSchema as Record<string, unknown>)
-            ?.required as string[] | undefined,
+          properties: (t.inputSchema as Record<string, unknown>)?.properties as
+            Record<string, object> | undefined,
+          required: (t.inputSchema as Record<string, unknown>)?.required as string[] | undefined,
         },
       })),
     };
   });
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async request => {
     const toolName = request.params.name;
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
 
@@ -93,9 +88,7 @@ async function main(): Promise<void> {
           {
             type: 'text',
             text:
-              typeof result.data === 'string'
-                ? result.data
-                : JSON.stringify(result.data, null, 2),
+              typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2),
           },
         ],
       } satisfies CallToolResult;
@@ -112,7 +105,7 @@ async function main(): Promise<void> {
   await server.connect(transport);
 }
 
-main().catch((err) => {
+main().catch(err => {
   console.error('Fatal error:', err);
   process.exit(1);
 });

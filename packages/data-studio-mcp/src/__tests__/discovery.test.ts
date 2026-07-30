@@ -66,10 +66,7 @@ describe('discoverBackends', () => {
     const { discoverBackends } = await getDiscovery();
     const backends = discoverBackends();
     expect(backends).toHaveLength(2);
-    expect(backends.map((b: { name: string }) => b.name).sort()).toEqual([
-      'dockit',
-      'sqlkit',
-    ]);
+    expect(backends.map((b: { name: string }) => b.name).sort()).toEqual(['dockit', 'sqlkit']);
   });
 
   it('ignores invalid env var values', async () => {

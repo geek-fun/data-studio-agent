@@ -6,7 +6,7 @@ let mockServer: Server | null = null;
 let mockPort = 0;
 
 function startMock(failTools = false): Promise<number> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     mockServer = createServer((req, res) => {
       if (req.method === 'POST' && req.url === '/tools') {
         if (failTools) {

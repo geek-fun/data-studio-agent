@@ -54,9 +54,7 @@ const BACKENDS: Array<{
  * 1. Explicit env var DOCKIT_MCP_PORT / SQLKIT_MCP_PORT
  * 2. Port file at app_data_dir/mcp-port
  */
-function discoverBackend(
-  cfg: (typeof BACKENDS)[number],
-): BackendInfo | null {
+function discoverBackend(cfg: (typeof BACKENDS)[number]): BackendInfo | null {
   // 1. Environment variable override
   const envPort = process.env[cfg.envVar];
   if (envPort) {

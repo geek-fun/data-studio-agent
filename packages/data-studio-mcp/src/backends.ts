@@ -47,9 +47,7 @@ export class BackendClient {
     });
 
     if (!res.ok) {
-      throw new Error(
-        `Backend ${this.info.name} returned HTTP ${res.status}: ${res.statusText}`,
-      );
+      throw new Error(`Backend ${this.info.name} returned HTTP ${res.status}: ${res.statusText}`);
     }
 
     const body = (await res.json()) as {
@@ -63,10 +61,7 @@ export class BackendClient {
   /**
    * Invoke a tool by its internal capability name.
    */
-  async invokeTool(
-    name: string,
-    args: Record<string, unknown>,
-  ): Promise<InvokeResult> {
+  async invokeTool(name: string, args: Record<string, unknown>): Promise<InvokeResult> {
     const res = await fetch(`${this.info.baseUrl}/invoke`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
