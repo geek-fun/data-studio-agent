@@ -38,3 +38,7 @@ jobs:
       - name: Build
         working-directory: packages/data-studio-mcp
         run: npm run build
+
+      - name: Test
+        working-directory: packages/data-studio-mcp
+        run: npm test

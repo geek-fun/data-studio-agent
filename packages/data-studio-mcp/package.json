@@ -16,14 +16,17 @@
     "dev": "node bin/data-studio-mcp.js",
     "prepublishOnly": "npm run build",
     "start": "node bin/data-studio-mcp.js",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=18.0.0"
