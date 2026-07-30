@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { BackendClient } from '../backends.js';
+import { BackendClient } from '../src/backends.js';
 
 let mockServer: Server | null = null;
 let mockPort = 0;

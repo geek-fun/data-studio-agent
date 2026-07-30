@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildToolCatalog } from '../tools.js';
+import { buildToolCatalog } from '../src/tools.js';
 
 describe('buildToolCatalog', () => {
   it('returns empty catalog when no backends', async () => {

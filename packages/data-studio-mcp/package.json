@@ -7,12 +7,19 @@
     "data-studio-mcp": "./bin/data-studio-mcp.js"
   },
   "files": [
-    "bin",
-    "src",
+    "bin/data-studio-mcp.js",
+    "src/index.js",
+    "src/index.d.ts",
+    "src/discovery.js",
+    "src/discovery.d.ts",
+    "src/backends.js",
+    "src/backends.d.ts",
+    "src/tools.js",
+    "src/tools.d.ts",
     "server.json"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "node bin/data-studio-mcp.js",
     "lint:check": "eslint ./",
     "lint:fix": "eslint --fix ./",

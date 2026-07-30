@@ -5,7 +5,7 @@ import prettier from 'eslint-plugin-prettier';
 import globals from 'globals';
 
 export default [
-  { ignores: ['node_modules', 'dist', '*.d.ts', 'coverage', 'src/**/*.js'] },
+  { ignores: ['node_modules', 'dist', '*.d.ts', 'src/**/*.d.ts', 'coverage', 'src/**/*.js'] },
 
   eslint.configs.recommended,
 
@@ -43,7 +43,7 @@ export default [
   },
 
   {
-    files: ['src/__tests__/**/*.ts'],
+    files: ['tests/**/*.ts'],
     languageOptions: {
       parser: tsparser,
       parserOptions: { sourceType: 'module', ecmaVersion: 'latest' },

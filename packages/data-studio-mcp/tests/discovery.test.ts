@@ -25,7 +25,7 @@ afterEach(() => {
 async function getDiscovery() {
   // Recreate test dir
   fs.mkdirSync(testDir, { recursive: true });
-  return await import('../discovery.js');
+  return await import('../src/discovery.js');
 }
 
 describe('discoverBackends', () => {
