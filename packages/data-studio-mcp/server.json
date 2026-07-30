@@ -1,0 +1,17 @@
+{
+  "name": "@geekfun/data-studio-mcp",
+  "description": "Unified database MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
+  "repository": {
+    "url": "https://github.com/geek-fun/data-studio-agent",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@geekfun/data-studio-mcp",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}

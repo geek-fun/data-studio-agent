@@ -1,0 +1,40 @@
+{
+  "name": "@geekfun/data-studio-mcp",
+  "version": "0.1.0",
+  "description": "Unified MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
+  "type": "module",
+  "bin": {
+    "data-studio-mcp": "./bin/data-studio-mcp.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "server.json"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "node bin/data-studio-mcp.js",
+    "prepublishOnly": "npm run build",
+    "start": "node bin/data-studio-mcp.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geek-fun/data-studio-agent.git",
+    "directory": "packages/data-studio-mcp"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0"
+}
