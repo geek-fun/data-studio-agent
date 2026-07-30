@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const compiled = join(__dirname, '..', 'src', 'index.js');
+const compiled = join(__dirname, '..', 'dist', 'src', 'index.js');
 
 if (existsSync(compiled)) {
   // Production path: compiled JS

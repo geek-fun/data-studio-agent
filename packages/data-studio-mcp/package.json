@@ -6,20 +6,15 @@
   "bin": {
     "data-studio-mcp": "./bin/data-studio-mcp.js"
   },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
   "files": [
-    "bin/data-studio-mcp.js",
-    "src/index.js",
-    "src/index.d.ts",
-    "src/discovery.js",
-    "src/discovery.d.ts",
-    "src/backends.js",
-    "src/backends.d.ts",
-    "src/tools.js",
-    "src/tools.d.ts",
+    "dist",
+    "bin",
     "server.json"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc --build",
     "dev": "node bin/data-studio-mcp.js",
     "lint:check": "eslint ./",
     "lint:fix": "eslint --fix ./",
