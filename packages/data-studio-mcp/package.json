@@ -1,0 +1,56 @@
+{
+  "name": "@geek-fun/data-studio-mcp",
+  "version": "0.1.0",
+  "description": "Unified MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
+  "type": "module",
+  "bin": {
+    "data-studio-mcp": "./bin/data-studio-mcp.js"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "files": [
+    "dist",
+    "bin",
+    "server.json"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "node bin/data-studio-mcp.js",
+    "lint:check": "eslint ./",
+    "lint:fix": "eslint --fix ./",
+    "prepublishOnly": "npm run build",
+    "start": "node bin/data-studio-mcp.js",
+    "typecheck": "tsc --noEmit",
+    "audit": "npm audit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.8.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/geek-fun/data-studio-agent.git",
+    "directory": "packages/data-studio-mcp"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0"
+}
