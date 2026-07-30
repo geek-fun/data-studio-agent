@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { BackendClient } from '../src/backends.js';
+import { createBackendClient } from '../src/backends.js';
 
 let mockServer: Server | null = null;
 let mockPort = 0;
@@ -55,7 +55,7 @@ afterAll(() => {
 describe('BackendClient', () => {
   it('listTools returns tools from the bridge', async () => {
     mockPort = await startMock();
-    const client = new BackendClient({
+    const client = createBackendClient({
       name: 'dockit',
       port: mockPort,
       baseUrl: `http://127.0.0.1:${mockPort}`,
@@ -68,7 +68,7 @@ describe('BackendClient', () => {
 
   it('listTools throws when bridge returns error', async () => {
     const port = await startMock(true);
-    const client = new BackendClient({
+    const client = createBackendClient({
       name: 'dockit',
       port,
       baseUrl: `http://127.0.0.1:${port}`,
@@ -78,7 +78,7 @@ describe('BackendClient', () => {
   });
 
   it('listTools throws when bridge is unreachable', async () => {
-    const client = new BackendClient({
+    const client = createBackendClient({
       name: 'dockit',
       port: 1,
       baseUrl: 'http://127.0.0.1:1',
@@ -89,7 +89,7 @@ describe('BackendClient', () => {
 
   it('invokeTool returns result from the bridge', async () => {
     if (!mockPort) mockPort = await startMock();
-    const client = new BackendClient({
+    const client = createBackendClient({
       name: 'dockit',
       port: mockPort,
       baseUrl: `http://127.0.0.1:${mockPort}`,
@@ -101,7 +101,7 @@ describe('BackendClient', () => {
   });
 
   it('exposes name and baseUrl', async () => {
-    const client = new BackendClient({
+    const client = createBackendClient({
       name: 'dockit',
       port: 9120,
       baseUrl: 'http://127.0.0.1:9120',

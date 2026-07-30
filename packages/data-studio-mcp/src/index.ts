@@ -9,10 +9,21 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { discoverBackends } from './discovery.js';
-import { BackendClient } from './backends.js';
+import { createBackendClient } from './backends.js';
 import { buildToolCatalog } from './tools.js';
 
-async function main(): Promise<void> {
+const errorResult = (text: string): CallToolResult => ({
+  content: [{ type: 'text', text }],
+  isError: true,
+});
+
+const okResult = (data: unknown): CallToolResult => ({
+  content: [
+    { type: 'text', text: typeof data === 'string' ? data : JSON.stringify(data, null, 2) },
+  ],
+});
+
+const main = async (): Promise<void> => {
   const backends = discoverBackends();
   if (backends.length === 0) {
     console.error(
@@ -31,79 +42,50 @@ async function main(): Promise<void> {
 
   console.error(`Loaded ${tools.length} tools from ${backends.length} backend(s).`);
 
-  const clients = new Map<string, BackendClient>(backends.map(b => [b.name, new BackendClient(b)]));
+  const clients = new Map(backends.map(b => [b.name, createBackendClient(b)]));
 
   const server = new Server(
     { name: 'data-studio-mcp', version: '0.1.0' },
     { capabilities: { tools: {} } },
   );
 
-  server.setRequestHandler(ListToolsRequestSchema, async () => {
-    return {
-      tools: tools.map(t => ({
-        name: t.name,
-        description: t.description,
-        inputSchema: {
-          type: 'object' as const,
-          properties: (t.inputSchema as Record<string, unknown>)?.properties as
-            Record<string, object> | undefined,
-          required: (t.inputSchema as Record<string, unknown>)?.required as string[] | undefined,
-        },
-      })),
-    };
-  });
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: tools.map(t => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: {
+        type: 'object' as const,
+        properties: (t.inputSchema as Record<string, unknown>)?.properties as
+          Record<string, object> | undefined,
+        required: (t.inputSchema as Record<string, unknown>)?.required as string[] | undefined,
+      },
+    })),
+  }));
 
   server.setRequestHandler(CallToolRequestSchema, async request => {
     const toolName = request.params.name;
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
 
     const route = routeMap.get(toolName);
-    if (!route) {
-      return {
-        content: [{ type: 'text', text: `Unknown tool: ${toolName}` }],
-        isError: true,
-      } satisfies CallToolResult;
-    }
+    if (!route) return errorResult(`Unknown tool: ${toolName}`);
 
     const client = clients.get(route.backendName);
-    if (!client) {
-      return {
-        content: [{ type: 'text', text: `Backend ${route.backendName} is not available` }],
-        isError: true,
-      } satisfies CallToolResult;
-    }
+    if (!client) return errorResult(`Backend ${route.backendName} is not available`);
 
     try {
       const result = await client.invokeTool(route.internalName, args);
-
       if (result.status >= 400) {
-        return {
-          content: [{ type: 'text', text: result.message ?? `Error (HTTP ${result.status})` }],
-          isError: true,
-        } satisfies CallToolResult;
+        return errorResult(result.message ?? `Error (HTTP ${result.status})`);
       }
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text:
-              typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2),
-          },
-        ],
-      } satisfies CallToolResult;
+      return okResult(result.data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        content: [{ type: 'text', text: `Bridge error: ${message}` }],
-        isError: true,
-      } satisfies CallToolResult;
+      return errorResult(`Bridge error: ${err instanceof Error ? err.message : String(err)}`);
     }
   });
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-}
+};
 
 main().catch(err => {
   console.error('Fatal error:', err);
