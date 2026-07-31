@@ -15,15 +15,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  typecheck:
-    name: Typecheck & Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [24.x]
 
-      - uses: actions/setup-node@v4
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Github checkout
+        uses: actions/checkout@v5
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: packages/data-studio-mcp/package-lock.json
 
@@ -35,14 +44,24 @@ jobs:
         working-directory: packages/data-studio-mcp
         run: npm run lint:check
 
-      - name: Typecheck
+      - name: Security audit
         working-directory: packages/data-studio-mcp
-        run: npx tsc --noEmit
+        run: npm audit --audit-level=critical
 
       - name: Build
         working-directory: packages/data-studio-mcp
         run: npm run build
 
-      - name: Test
+      - name: Test with coverage
         working-directory: packages/data-studio-mcp
-        run: npm test
+        run: npm run test:ci
+
+      - name: Upload coverage reports to Codecov
+        if: matrix.os == 'ubuntu-latest' && env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        uses: codecov/codecov-action@v4
+        with:
+          directory: packages/data-studio-mcp
+          verbose: true
+          fail_ci_if_error: true
