@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { appDataDir } from '../src/discovery.js';
 
 // Mock fs and os before importing discovery
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-'));
@@ -77,14 +78,7 @@ describe('discoverBackends', () => {
   });
 
   it('discovers backend via port file in app data dir', async () => {
-    // Mock by setting up a temp dir and faking the discovery path
-    // We use platform-appropriate path to verify
-    const home = os.homedir();
-    const platform = os.platform();
-    const bundleDir =
-      platform === 'darwin'
-        ? path.join(home, 'Library', 'Application Support', 'club.geekfun.dockit')
-        : path.join(home, '.local', 'share', 'club.geekfun.dockit');
+    const bundleDir = appDataDir('club.geekfun.dockit');
 
     const portFile = path.join(bundleDir, 'mcp-port');
     fs.mkdirSync(bundleDir, { recursive: true });
@@ -104,11 +98,7 @@ describe('discoverBackends', () => {
 
   it('env var takes precedence over port file', async () => {
     // Write a port file
-    const home = os.homedir();
-    const bundleDir =
-      os.platform() === 'darwin'
-        ? path.join(home, 'Library', 'Application Support', 'club.geekfun.dockit')
-        : path.join(home, '.local', 'share', 'club.geekfun.dockit');
+    const bundleDir = appDataDir('club.geekfun.dockit');
     const portFile = path.join(bundleDir, 'mcp-port');
     fs.mkdirSync(bundleDir, { recursive: true });
     fs.writeFileSync(portFile, '9988');
@@ -125,11 +115,7 @@ describe('discoverBackends', () => {
   });
 
   it('does not throw when port file is invalid', async () => {
-    const home = os.homedir();
-    const bundleDir =
-      os.platform() === 'darwin'
-        ? path.join(home, 'Library', 'Application Support', 'club.geekfun.dockit')
-        : path.join(home, '.local', 'share', 'club.geekfun.dockit');
+    const bundleDir = appDataDir('club.geekfun.dockit');
     const portFile = path.join(bundleDir, 'mcp-port');
     fs.mkdirSync(bundleDir, { recursive: true });
     fs.writeFileSync(portFile, 'not-a-number');
