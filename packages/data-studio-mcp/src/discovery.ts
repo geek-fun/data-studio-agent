@@ -18,7 +18,7 @@ const BACKENDS: ReadonlyArray<{
   { name: 'sqlkit', bundleId: 'club.geekfun.sqlkit', defaultPort: 9121, envVar: 'SQLKIT_MCP_PORT' },
 ];
 
-function appDataDir(bundleId: string): string {
+export function appDataDir(bundleId: string): string {
   const home = os.homedir();
   const platform = os.platform();
 
