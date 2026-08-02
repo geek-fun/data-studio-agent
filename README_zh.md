@@ -2,9 +2,9 @@
 
 # data-studio-agent
 
-**Shared Rust agent framework powering [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit) — a complete AI agent loop: provider adapters, streaming, tool calling, context compaction, conversation management.**
+**驱动 [dockit](https://github.com/geek-fun/dockit) 和 [sqlkit](https://github.com/geek-fun/sqlkit) 的共享 Rust Agent 框架 —— 完整的 AI Agent 循环：Provider 适配、流式输出、工具调用、上下文压缩、会话管理。**
 
-**One crate. Two apps. Pluggable storage and eventing.**
+**一个 Crate。两个应用。可插拔的存储与事件。**
 
 [![Release](https://img.shields.io/github/v/release/geek-fun/data-studio-agent?color=orange&label=release&logo=github)](https://github.com/geek-fun/data-studio-agent/releases)
 [![Downloads](https://img.shields.io/github/downloads/geek-fun/data-studio-agent/total?color=orange&logo=docusign)](https://github.com/geek-fun/data-studio-agent/releases)
@@ -20,34 +20,34 @@
 
 [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [@geek-fun/data-studio-mcp](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
 
-English · [简体中文](README_zh.md)
+[English](README.md) · 简体中文
 
 </div>
 
 ---
 
-Shared Rust agent framework extracted from [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit). A single crate that provides a complete AI agent loop — provider adapters, streaming, tool calling, context compaction, conversation management — generic over pluggable storage and eventing.
+从 [dockit](https://github.com/geek-fun/dockit) 和 [sqlkit](https://github.com/geek-fun/sqlkit) 中提取的共享 Rust Agent 框架。一个 Crate 提供完整的 AI Agent 循环 —— Provider 适配、流式输出、工具调用、上下文压缩、会话管理 —— 对可插拔的存储和事件完全泛化。
 
-This repository also hosts [@geek-fun/data-studio-mcp](packages/data-studio-mcp/README.md), the MCP server that exposes dockit and sqlkit capabilities to AI coding agents (Claude Code, Cursor, etc.).
+本仓库还托管 [@geek-fun/data-studio-mcp](packages/data-studio-mcp/README.md)，一个 MCP 服务器，将 dockit 和 sqlkit 的能力暴露给 AI 编程助手（Claude Code、Cursor 等）。
 
-## Install
+## 安装
 
 ```toml
 [dependencies]
 data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent", tag = "v0.1.4" }
 ```
 
-Opt out of SQLite if you provide your own `SessionStore`:
+如果使用自定义 `SessionStore`，可关闭 SQLite：
 
 ```toml
 data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent", tag = "v0.1.4", default-features = false }
 ```
 
-## Project structure
+## 项目结构
 
 ```
 data-studio-agent/
-├── Cargo.toml              # single crate, feature-gated
+├── Cargo.toml              # 单一 crate，feature 控制
 ├── src/
 │   ├── lib.rs
 │   ├── traits.rs           # SessionStore, EventEmitter
@@ -56,20 +56,20 @@ data-studio-agent/
 │   ├── model_registry.rs
 │   ├── token_counter.rs
 │   ├── tool_executor.rs    # ToolExecutor trait
-│   ├── loop_runner.rs      # ReAct agent loop
-│   ├── compact.rs          # Context compaction
-│   ├── conversation.rs     # Message lifecycle
-│   ├── harness.rs          # Single-step LLM calls
-│   ├── tools.rs            # Tool resolution
+│   ├── loop_runner.rs      # ReAct Agent 循环
+│   ├── compact.rs          # 上下文压缩
+│   ├── conversation.rs     # 消息生命周期
+│   ├── harness.rs          # 单步 LLM 调用
+│   ├── tools.rs            # 工具解析
 │   ├── loop_runner_support.rs
 │   ├── capabilities/       # CapabilityRegistry
-│   ├── common/             # HTTP client, formatting
+│   ├── common/             # HTTP 客户端、格式化
 │   └── storage/            # #[cfg(feature = "sqlite-storage")]
 │       ├── mod.rs
 │       ├── db.rs           # AgentDb, schema migration
 │       └── session_store.rs
 ├── packages/
-│   └── data-studio-mcp/    # MCP server (TypeScript)
+│   └── data-studio-mcp/    # MCP 服务器 (TypeScript)
 ├── docs/
 │   ├── architecture.md
 │   └── integration.md
@@ -83,23 +83,23 @@ data-studio-agent/
 └── README.md
 ```
 
-## Design
+## 设计
 
-Two traits decouple the agent loop from any framework:
+两个 trait 将 Agent 循环与任何框架解耦：
 
-| Trait | Role | App provides |
+| Trait | 职责 | 应用提供 |
 |-------|------|-------------|
-| `SessionStore` | Persist messages, tool calls, sessions | `SqliteSessionStore` (built-in) or custom impl |
-| `EventEmitter` | Stream deltas, status, errors | `TauriEmitter(AppHandle)` or any impl |
+| `SessionStore` | 持久化消息、工具调用、会话 | `SqliteSessionStore`（内置）或自定义实现 |
+| `EventEmitter` | 流式增量、状态、错误 | `TauriEmitter(AppHandle)` 或任意实现 |
 
-The loop itself knows nothing about Tauri, SQLite, or any specific tool — it's pure async Rust generic over these traits.
+循环本身不依赖 Tauri、SQLite 或任何具体工具 —— 它是基于这些 trait 泛化的纯异步 Rust 代码。
 
 ```
 ┌──────────────────────────────────┐
-│  Tauri app (dockit / sqlkit)     │
+│  Tauri 应用 (dockit / sqlkit)    │
 │  ┌────────────┐ ┌──────────────┐ │
 │  │ adapters   │ │ capabilities │ │
-│  │ (Tauri     │ │ (tool impls) │ │
+│  │ (Tauri     │ │ (工具实现)   │ │
 │  │  commands) │ │              │ │
 │  └─────┬──────┘ └──────┬───────┘ │
 │        │                │         │
@@ -127,9 +127,9 @@ The loop itself knows nothing about Tauri, SQLite, or any specific tool — it's
 └──────────────────────────────────┘
 ```
 
-## Quick start
+## 快速开始
 
-### 1. Initialize the database
+### 1. 初始化数据库
 
 ```rust
 use data_studio_agent::storage::{self, session_store::SqliteSessionStore};
@@ -140,9 +140,9 @@ storage::db::migrate(&agent_db)?;
 app.manage(agent_db);
 ```
 
-### 2. Wire Tauri commands
+### 2. 封装 Tauri 命令
 
-Create `agent_adapters.rs` with thin wrappers. Each command extracts Tauri state, builds a `TauriEmitter`, and delegates to the lib:
+创建 `agent_adapters.rs` 薄封装。每个命令提取 Tauri 状态、构建 `TauriEmitter`，并委托给库：
 
 ```rust
 use data_studio_agent as lib;
@@ -177,7 +177,7 @@ pub async fn run_agent_loop(
 }
 ```
 
-### 3. Register commands
+### 3. 注册命令
 
 ```rust
 .invoke_handler(tauri::generate_handler![
@@ -194,7 +194,7 @@ pub async fn run_agent_loop(
 ])
 ```
 
-### 4. Implement ToolExecutor
+### 4. 实现 ToolExecutor
 
 ```rust
 use data_studio_agent::tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
@@ -220,27 +220,27 @@ impl ToolExecutor for MyToolExecutor {
 }
 ```
 
-## Supported providers
+## 支持的 Provider
 
-- **OpenAI** (GPT-4o, GPT-4.1, o1/o3) — `/v1/chat/completions`
-- **Anthropic** (Claude 3.5/4) — `/v1/messages`
-- **Ollama** / **LM Studio** — local models
-- **OpenRouter** / **DeepSeek** / any OpenAI-compatible endpoint
+- **OpenAI**（GPT-4o、GPT-4.1、o1/o3）— `/v1/chat/completions`
+- **Anthropic**（Claude 3.5/4）— `/v1/messages`
+- **Ollama** / **LM Studio** — 本地模型
+- **OpenRouter** / **DeepSeek** / 任意 OpenAI 兼容端点
 
-## Capabilities
+## 能力特性
 
-| Feature | Detail |
-|---------|--------|
-| **ReAct loop** | Tool calling with retry + exponential backoff |
-| **Confirmation gating** | Per-tool Allow/Deny via oneshot channels |
-| **Runaway guard** | Stops if same tool call repeats 3× consecutively |
-| **Context compaction** | Auto-summarizes when context fills, safe split points |
-| **Token budgets** | 200 iterations, 30min wall clock, 20M tokens |
-| **Compaction locking** | Single per-session mutex for all compaction paths |
-| **Streaming** | SSE parsing via provider-specific formatters |
-| **SQLite persistence** | Canonical schema, per-app data isolation |
+| 特性 | 说明 |
+|--------|---------|
+| **ReAct 循环** | 工具调用 + 重试 + 指数退避 |
+| **确认门控** | 按工具 Allow/Deny，基于 oneshot channel |
+| **失控保护** | 同一工具连续重复 3 次即停止 |
+| **上下文压缩** | 上下文将满时自动摘要，安全分割点 |
+| **Token 预算** | 200 次迭代、30 分钟墙钟、2000 万 token |
+| **压缩锁** | 所有压缩路径共享每会话互斥锁 |
+| **流式输出** | 基于各 Provider 的 SSE 解析 |
+| **SQLite 持久化** | 规范化 schema，按应用数据隔离 |
 
-## Build
+## 构建
 
 ```bash
 cargo build
@@ -249,6 +249,6 @@ cargo clippy --all-features -- -D warnings
 cargo fmt --all -- --check
 ```
 
-## License
+## 许可证
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 — 见 [LICENSE](LICENSE)。
