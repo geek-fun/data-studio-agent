@@ -1,4 +1,28 @@
+<div align="center">
+
 # @geek-fun/data-studio-mcp
+
+**把你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）变成数据库助手 —— 用自然语言查询、探索和理解你的数据库。**
+
+**本地优先。数据永不离开你的电脑。开源开放。**
+
+[![npm version](https://img.shields.io/npm/v/@geek-fun/data-studio-mcp?color=orange&logo=npm)](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)
+[![Downloads](https://img.shields.io/npm/dm/@geek-fun/data-studio-mcp?color=orange&logo=npm)](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg&logo=apache)](https://github.com/geek-fun/data-studio-agent/blob/master/LICENSE)
+
+<p>
+  <img src="https://img.shields.io/badge/SQL-PostgreSQL%20%7C%20MySQL%20%7C%20SQL%20Server%20%7C%20SQLite-336791"/>
+  <img src="https://img.shields.io/badge/NoSQL-Elasticsearch%20%7C%20OpenSearch%20%7C%20MongoDB%20%7C%20DynamoDB-47A248"/>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white"/>
+</p>
+
+[npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
+
+[English](README.md) · 简体中文
+
+</div>
+
+---
 
 让你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）变成数据库助手。直接用自然语言提问，让它查询数据、查看表结构、编写 SQL 或 NoSQL 查询 — 支持：
 
