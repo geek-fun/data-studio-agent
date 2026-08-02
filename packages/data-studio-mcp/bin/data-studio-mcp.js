@@ -17,7 +17,8 @@ const compiled = join(__dirname, '..', 'dist', 'src', 'index.js');
 
 if (existsSync(compiled)) {
   // Production path: compiled JS
-  await import(compiled);
+  const { main } = await import(compiled);
+  await main();
 } else {
   // Development path: use tsx for on-the-fly transpilation
   try {
@@ -25,5 +26,6 @@ if (existsSync(compiled)) {
   } catch {
     // tsx not installed — fall back to node with --experimental-strip-types
   }
-  await import(join(__dirname, '..', 'src', 'index.ts'));
+  const { main } = await import(join(__dirname, '..', 'src', 'index.ts'));
+  await main();
 }

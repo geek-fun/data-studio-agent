@@ -5,7 +5,7 @@ export type BridgeToolDef = {
   description: string;
   inputSchema: object;
   metadata?: {
-    riskLevel?: string;
+    riskLevel?: 'safe' | 'elevated' | 'destructive';
     requiredPermission?: string;
   };
 };
