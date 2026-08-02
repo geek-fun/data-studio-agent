@@ -16,10 +16,21 @@ export interface InvokeResult {
   message?: string;
 }
 
+export interface BridgeConnection {
+  id: unknown;
+  name: string;
+  type: string;
+}
+
+export interface BridgeCatalog {
+  tools: BridgeToolDef[];
+  connections: BridgeConnection[];
+}
+
 export interface BackendClient {
   readonly name: string;
   readonly baseUrl: string;
-  listTools(): Promise<BridgeToolDef[]>;
+  listTools(): Promise<BridgeCatalog>;
   invokeTool(name: string, args: Record<string, unknown>): Promise<InvokeResult>;
 }
 
@@ -33,7 +44,7 @@ export function createBackendClient(info: BackendInfo): BackendClient {
       return info.baseUrl;
     },
 
-    async listTools(): Promise<BridgeToolDef[]> {
+    async listTools(): Promise<BridgeCatalog> {
       const res = await fetch(`${info.baseUrl}/tools`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -44,8 +55,12 @@ export function createBackendClient(info: BackendInfo): BackendClient {
         throw new Error(`Backend ${info.name} returned HTTP ${res.status}: ${res.statusText}`);
       }
 
-      const body = (await res.json()) as { tools: BridgeToolDef[]; connections: unknown[] };
-      return body.tools ?? [];
+      const body = (await res.json()) as {
+        tools: BridgeToolDef[];
+        connections?: BridgeConnection[];
+      };
+
+      return { tools: body.tools ?? [], connections: body.connections ?? [] };
     },
 
     async invokeTool(name: string, args: Record<string, unknown>): Promise<InvokeResult> {
