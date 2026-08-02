@@ -1,7 +1,22 @@
 {
   "name": "@geek-fun/data-studio-mcp",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Unified MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "database",
+    "sql",
+    "nosql",
+    "elasticsearch",
+    "mongodb",
+    "dynamodb",
+    "postgresql",
+    "mysql",
+    "sqlite",
+    "claude",
+    "cursor"
+  ],
   "type": "module",
   "bin": {
     "data-studio-mcp": "./bin/data-studio-mcp.js"
