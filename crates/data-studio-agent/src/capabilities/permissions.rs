@@ -96,7 +96,7 @@ fn default_confirm_destructive() -> bool {
 impl Default for McpPolicy {
     fn default() -> Self {
         Self {
-            mode: McpPermissionMode::ReadOnly,
+            mode: McpPermissionMode::DataReadWrite,
             allowed_connection_ids: Vec::new(),
             connection_overrides: HashMap::new(),
             confirm_destructive: true,
@@ -177,9 +177,9 @@ mod tests {
     }
 
     #[test]
-    fn test_default_policy_is_read_only_with_all_connections() {
+    fn test_default_policy_is_data_read_write_with_all_connections() {
         let policy = McpPolicy::default();
-        assert_eq!(policy.mode, McpPermissionMode::ReadOnly);
+        assert_eq!(policy.mode, McpPermissionMode::DataReadWrite);
         assert!(policy.allowed_connection_ids.is_empty());
         assert!(policy.is_connection_allowed("any-id"));
         assert!(!policy.is_connection_read_only("any-id"));
