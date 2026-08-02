@@ -4,6 +4,19 @@ use serde::{Deserialize, Serialize};
 
 use super::types::RiskLevel;
 
+/// Result of a policy decision for a capability invocation.
+///
+/// `Ask` is informational this iteration: both the MCP bridge and the built-in
+/// agent loop execute on `Ask` (confirmation UX is client-driven). Only `Deny`
+/// short-circuits execution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PolicyAction {
+    Allow,
+    Ask,
+    Deny,
+}
+
 /// Permission modes for MCP bridge access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum McpPermissionMode {
@@ -75,19 +88,32 @@ impl McpPolicy {
     }
 
     /// Whether a capability may run for the given connection.
+    /// Compat: `allows()` == `decide() != Deny` (Ask counts as allowed).
     pub fn allows(&self, risk_level: RiskLevel, connection_id: Option<&str>) -> bool {
+        !matches!(self.decide(risk_level, connection_id), PolicyAction::Deny)
+    }
+
+    /// Decide the policy action for a capability and connection.
+    pub fn decide(&self, risk_level: RiskLevel, connection_id: Option<&str>) -> PolicyAction {
         if let Some(id) = connection_id {
             if !self.is_connection_allowed(id) {
-                return false;
+                return PolicyAction::Deny;
             }
             if self.is_connection_read_only(id) && !matches!(risk_level, RiskLevel::Safe) {
-                return false;
+                return PolicyAction::Deny;
             }
         }
         if !self.confirm_destructive && matches!(risk_level, RiskLevel::Destructive) {
-            return false;
+            return PolicyAction::Deny;
         }
-        self.mode.allows(risk_level)
+        if !self.mode.allows(risk_level) {
+            return PolicyAction::Deny;
+        }
+        if matches!(risk_level, RiskLevel::Destructive) && self.confirm_destructive {
+            PolicyAction::Ask
+        } else {
+            PolicyAction::Allow
+        }
     }
 }
 
@@ -211,5 +237,81 @@ mod tests {
             serde_json::to_value(McpPermissionMode::FullAccess).unwrap(),
             json!("FullAccess")
         );
+    }
+
+    #[test]
+    fn test_decide_full_matrix() {
+        // mode × risk × confirm_destructive → expected PolicyAction
+        let cases: Vec<(McpPermissionMode, RiskLevel, bool, PolicyAction)> = vec![
+            (McpPermissionMode::ReadOnly, RiskLevel::Safe, true, PolicyAction::Allow),
+            (McpPermissionMode::ReadOnly, RiskLevel::Safe, false, PolicyAction::Allow),
+            (McpPermissionMode::ReadOnly, RiskLevel::Elevated, true, PolicyAction::Deny),
+            (McpPermissionMode::ReadOnly, RiskLevel::Elevated, false, PolicyAction::Deny),
+            (McpPermissionMode::ReadOnly, RiskLevel::Destructive, true, PolicyAction::Deny),
+            (McpPermissionMode::ReadOnly, RiskLevel::Destructive, false, PolicyAction::Deny),
+            (McpPermissionMode::DataReadWrite, RiskLevel::Safe, true, PolicyAction::Allow),
+            (McpPermissionMode::DataReadWrite, RiskLevel::Safe, false, PolicyAction::Allow),
+            (McpPermissionMode::DataReadWrite, RiskLevel::Elevated, true, PolicyAction::Allow),
+            (McpPermissionMode::DataReadWrite, RiskLevel::Elevated, false, PolicyAction::Allow),
+            (McpPermissionMode::DataReadWrite, RiskLevel::Destructive, true, PolicyAction::Deny),
+            (McpPermissionMode::DataReadWrite, RiskLevel::Destructive, false, PolicyAction::Deny),
+            (McpPermissionMode::FullAccess, RiskLevel::Safe, true, PolicyAction::Allow),
+            (McpPermissionMode::FullAccess, RiskLevel::Safe, false, PolicyAction::Allow),
+            (McpPermissionMode::FullAccess, RiskLevel::Elevated, true, PolicyAction::Allow),
+            (McpPermissionMode::FullAccess, RiskLevel::Elevated, false, PolicyAction::Allow),
+            // NEW semantic: confirm_destructive=true + Destructive + FullAccess → Ask
+            (McpPermissionMode::FullAccess, RiskLevel::Destructive, true, PolicyAction::Ask),
+            (McpPermissionMode::FullAccess, RiskLevel::Destructive, false, PolicyAction::Deny),
+        ];
+
+        for (mode, risk, confirm, expected) in cases {
+            let policy = McpPolicy { mode, confirm_destructive: confirm, ..McpPolicy::default() };
+            let decided = policy.decide(risk, None);
+            assert_eq!(
+                decided, expected,
+                "decide({mode:?}, {risk:?}, confirm_destructive={confirm}) expected {expected:?} got {decided:?}"
+            );
+            // Compat invariant: allows() == (decide() != Deny)
+            assert_eq!(
+                policy.allows(risk, None),
+                !matches!(decided, PolicyAction::Deny),
+                "allows() must equal (decide() != Deny) for {mode:?}/{risk:?}/{confirm}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_decide_connection_overrides() {
+        // allowlist excludes a connection → Deny
+        let allowlist =
+            McpPolicy { allowed_connection_ids: vec!["conn-1".into()], ..McpPolicy::default() };
+        assert_eq!(allowlist.decide(RiskLevel::Safe, Some("conn-2")), PolicyAction::Deny);
+        assert_eq!(allowlist.decide(RiskLevel::Safe, Some("conn-1")), PolicyAction::Allow);
+
+        // read-only override blocks Elevated for that connection
+        let override_policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            connection_overrides: HashMap::from([(
+                "prod-es".into(),
+                ConnectionMcpOverride { read_only: true },
+            )]),
+            ..McpPolicy::default()
+        };
+        assert_eq!(
+            override_policy.decide(RiskLevel::Elevated, Some("prod-es")),
+            PolicyAction::Deny
+        );
+        assert_eq!(override_policy.decide(RiskLevel::Safe, Some("prod-es")), PolicyAction::Allow);
+        assert_eq!(
+            override_policy.decide(RiskLevel::Elevated, Some("staging")),
+            PolicyAction::Allow
+        );
+    }
+
+    #[test]
+    fn test_policy_action_serde_names() {
+        assert_eq!(serde_json::to_value(PolicyAction::Allow).unwrap(), json!("allow"));
+        assert_eq!(serde_json::to_value(PolicyAction::Ask).unwrap(), json!("ask"));
+        assert_eq!(serde_json::to_value(PolicyAction::Deny).unwrap(), json!("deny"));
     }
 }

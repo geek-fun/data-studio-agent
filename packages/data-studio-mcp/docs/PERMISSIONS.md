@@ -1,15 +1,30 @@
 # Permission Configuration
 
-How to control which database operations your AI agent can run. Covers both client-side confirmation dialogs and the server-side policy model.
+How to control which database operations your AI agent can run. Covers the three-layer model: tool risk definitions, server-side policy enforcement, and client-side confirmation UX.
 
-## How permissions work
+## The three layers
 
-Two layers enforce safety:
+| Layer | What | Where | Who configures |
+|---|---|---|---|
+| **L1 — Tool risk** | Every capability declares a static `RiskLevel` (`safe` / `elevated` / `destructive`) | `data-studio-agent` crate, capability registry | We (static metadata) |
+| **L2 — Server policy** | `McpPolicy` decides each invocation: `Allow` / `Ask` / `Deny` | dockit/sqlkit bridges — both the MCP bridge **and** the built-in agent loop | User (Settings → MCP Bridge) |
+| **L3 — Client session policy** | Your AI tool's own confirmation UX (Ask/Auto mode, permission rules) | The agent client itself | User / agent client |
 
-1. **Server policy** (dockit/sqlkit): Controls which tool risk levels the bridge exposes. The MCP server only advertises tools the bridge allows.
-2. **Client UX**: Your AI tool can ask for confirmation before calling destructive tools, using the `ToolAnnotations` the server provides.
+The layers never merge. L1 describes tools, L2 enforces safety, L3 shapes the confirmation dialogs.
 
-The bridge always enforces its policy regardless of what the client does. Even if a client ignores `destructiveHint` and calls the tool directly, the bridge rejects operations outside the active permission mode.
+## Policy decisions (`PolicyAction`)
+
+`McpPolicy.decide(risk_level, connection_id)` returns one of:
+
+| Action | Meaning | Enforced by |
+|---|---|---|
+| `Allow` | Proceed | bridge + loop |
+| `Ask` | Proceed, but confirmation is recommended | Informational this iteration — both paths execute; the `Ask` signal is reserved on the enum for future server-driven confirmation |
+| `Deny` | Blocked (403 for MCP; short-circuited before execution in the built-in loop) | bridge + loop |
+
+Compatibility: `allows()` (used internally and by the MCP bridge) is exactly `decide() != Deny` — `Ask` counts as allowed.
+
+The built-in agent loop enforces `Deny` server-side: a denied tool is marked `denied` and never reaches execution or the confirmation dialog, without a frontend round-trip.
 
 ---
 

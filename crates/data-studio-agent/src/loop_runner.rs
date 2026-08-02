@@ -563,6 +563,7 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
     confirm_map: &ConfirmMap,
     cancel_map: &CancelMap,
     is_parallel_ok: &(dyn Fn(&str) -> bool + Send + Sync),
+    should_deny: &(dyn Fn(&str, Option<&str>) -> bool + Send + Sync),
 ) -> Result<(), String> {
     let (cancel_tx, cancel_rx) = oneshot::channel::<()>();
     {
@@ -588,6 +589,7 @@ pub async fn run_agent_loop<S: SessionStore, E: EventEmitter>(
         confirm_map,
         cancel_rx,
         is_parallel_ok,
+        should_deny,
     )
     .await;
 
@@ -635,6 +637,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
     confirm_map: &ConfirmMap,
     mut cancel_rx: oneshot::Receiver<()>,
     is_parallel_ok: &(dyn Fn(&str) -> bool + Send + Sync),
+    should_deny: &(dyn Fn(&str, Option<&str>) -> bool + Send + Sync),
 ) -> Result<(), String> {
     store.update_session_status(session_id, "running").await?;
 
@@ -1062,10 +1065,8 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
             }
 
             // Resolve connection config from the pre-resolved connections map
-            let resolved_config = match arguments_value
-                .get("connection_id")
-                .and_then(|v| v.as_str())
-            {
+            let conn_id = arguments_value.get("connection_id").and_then(|v| v.as_str());
+            let resolved_config = match conn_id {
                 Some(conn_id) => match connections.get(conn_id) {
                     Some(cfg) => cfg.clone(),
                     None => {
@@ -1159,6 +1160,38 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                     "arguments": arguments_value,
                 }),
             );
+
+            // Server-side policy gate: short-circuit Deny without awaiting user
+            if should_deny(&tool_name, conn_id) {
+                store.update_tool_call_status(&tool_call_id, "denied").await?;
+                let deny_content =
+                    format!("Tool '{}' was denied by server permission policy.", tool_name);
+                let deny_msg = json!({
+                    "tool_call_id": tool_call_id,
+                    "name": tool_name,
+                    "content": deny_content,
+                });
+                inline_append(
+                    store,
+                    emitter,
+                    settings,
+                    &new_id(),
+                    session_id,
+                    "tool",
+                    &deny_msg.to_string(),
+                )
+                .await?;
+                emitter.emit(
+                    "agent-loop-tool-result",
+                    json!({
+                        "session_id": session_id,
+                        "tool_call_id": tool_call_id,
+                        "error": true,
+                        "envelope": { "summary": deny_content },
+                    }),
+                );
+                continue;
+            }
 
             let confirm_future =
                 tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
