@@ -42,6 +42,15 @@ pub struct McpPolicy {
     pub allowed_connection_ids: Vec<String>,
     /// Connection-ID-keyed overrides that supersede the global mode
     pub connection_overrides: HashMap<String, ConnectionMcpOverride>,
+    /// When true, Destructive capabilities are exposed and gated by mode
+    /// (only FullAccess allows them). When false, Destructive is always
+    /// hidden/rejected regardless of mode.
+    #[serde(default = "default_confirm_destructive")]
+    pub confirm_destructive: bool,
+}
+
+fn default_confirm_destructive() -> bool {
+    true
 }
 
 impl Default for McpPolicy {
@@ -50,6 +59,7 @@ impl Default for McpPolicy {
             mode: McpPermissionMode::ReadOnly,
             allowed_connection_ids: Vec::new(),
             connection_overrides: HashMap::new(),
+            confirm_destructive: true,
         }
     }
 }
@@ -73,6 +83,9 @@ impl McpPolicy {
             if self.is_connection_read_only(id) && !matches!(risk_level, RiskLevel::Safe) {
                 return false;
             }
+        }
+        if !self.confirm_destructive && matches!(risk_level, RiskLevel::Destructive) {
+            return false;
         }
         self.mode.allows(risk_level)
     }
@@ -105,6 +118,40 @@ mod tests {
         assert!(policy.allowed_connection_ids.is_empty());
         assert!(policy.is_connection_allowed("any-id"));
         assert!(!policy.is_connection_read_only("any-id"));
+        // Destructive confirmations are on by default (issue #10)
+        assert!(policy.confirm_destructive);
+    }
+
+    #[test]
+    fn test_confirm_destructive_false_blocks_destructive_even_in_full_access() {
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            confirm_destructive: false,
+            ..McpPolicy::default()
+        };
+        // confirm_destructive=false hides Destructive from FullAccess too
+        assert!(!policy.allows(RiskLevel::Destructive, None));
+        // Safe/Elevated unaffected
+        assert!(policy.allows(RiskLevel::Safe, None));
+        assert!(policy.allows(RiskLevel::Elevated, None));
+    }
+
+    #[test]
+    fn test_confirm_destructive_true_allows_destructive_only_in_full_access() {
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            confirm_destructive: true,
+            ..McpPolicy::default()
+        };
+        assert!(policy.allows(RiskLevel::Destructive, None));
+
+        let readonly_policy = McpPolicy {
+            mode: McpPermissionMode::DataReadWrite,
+            confirm_destructive: true,
+            ..McpPolicy::default()
+        };
+        // Mode gate still applies — DataReadWrite blocks Destructive regardless
+        assert!(!readonly_policy.allows(RiskLevel::Destructive, None));
     }
 
     #[test]
@@ -141,11 +188,13 @@ mod tests {
                 "conn-1".into(),
                 ConnectionMcpOverride { read_only: true },
             )]),
+            confirm_destructive: false,
         };
         let v = serde_json::to_value(&policy).unwrap();
         assert_eq!(v["mode"], "DataReadWrite");
         assert_eq!(v["allowed_connection_ids"][0], "conn-1");
         assert_eq!(v["connection_overrides"]["conn-1"]["read_only"], true);
+        assert_eq!(v["confirm_destructive"], false);
 
         let back: McpPolicy = serde_json::from_value(v).unwrap();
         assert_eq!(back, policy);
