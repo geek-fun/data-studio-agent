@@ -23,7 +23,7 @@ flag_management:
   individual_flags:
     - name: rust
       paths:
-        - src/
+        - crates/data-studio-agent/src/
       carryforward: true
 
 comment:

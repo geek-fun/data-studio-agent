@@ -13,7 +13,7 @@
 ├─────────┼──────────────────┼─────────────────────┼───────────┤
 │         ▼                  ▼                     ▼           │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │          data-studio-agent-lib                        │   │
+│  │  data-studio-agent  (crates/data-studio-agent)        │   │
 │  │  ┌─────────────┐ ┌──────────────┐ ┌───────────────┐  │   │
 │  │  │ loop_runner │ │   compact    │ │ conversation  │  │   │
 │  │  │ (ReAct loop)│ │ (summarize)  │ │ (lifecycle)   │  │   │
@@ -30,7 +30,7 @@
 │  └──────────────────────────────────────────────────────┘   │
 │                                                             │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │          data-studio-agent-storage-sqlite             │   │
+│  │  storage  (#[cfg(feature = "sqlite-storage")])        │   │
 │  │  ┌──────────────┐  ┌───────────────────────┐         │   │
 │  │  │   AgentDb    │  │  SqliteSessionStore   │         │   │
 │  │  │ (open/migrate)│  │ (impl SessionStore)   │         │   │
@@ -43,7 +43,7 @@
 
 ### SessionStore
 
-Replaces all direct `db.0.lock()` / raw SQL calls. Each app provides an implementation — typically `SqliteSessionStore` from `storage-sqlite`, but any backend works (Postgres, in-memory, mock for tests).
+Replaces all direct `db.0.lock()` / raw SQL calls. Each app provides an implementation — typically `SqliteSessionStore` from the `sqlite-storage` feature, but any backend works (Postgres, in-memory, mock for tests).
 
 ```rust
 #[async_trait]
@@ -106,7 +106,7 @@ The compaction system uses a two-pass approach:
 
 ## Database Schema
 
-The canonical schema in `storage-sqlite`:
+The canonical schema in the `sqlite-storage` feature:
 
 ```sql
 CREATE TABLE agent_sessions (
