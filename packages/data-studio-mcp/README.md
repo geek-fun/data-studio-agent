@@ -1,4 +1,28 @@
+<div align="center">
+
 # @geek-fun/data-studio-mcp
+
+**Turn your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) into a database assistant — query, explore, and understand your databases in plain language.**
+
+**Local-first. Your data never leaves your machine. Open source.**
+
+[![npm version](https://img.shields.io/npm/v/@geek-fun/data-studio-mcp?color=orange&logo=npm)](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)
+[![Downloads](https://img.shields.io/npm/dm/@geek-fun/data-studio-mcp?color=orange&logo=npm)](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg&logo=apache)](https://github.com/geek-fun/data-studio-agent/blob/master/LICENSE)
+
+<p>
+  <img src="https://img.shields.io/badge/SQL-PostgreSQL%20%7C%20MySQL%20%7C%20SQL%20Server%20%7C%20SQLite-336791"/>
+  <img src="https://img.shields.io/badge/NoSQL-Elasticsearch%20%7C%20OpenSearch%20%7C%20MongoDB%20%7C%20DynamoDB-47A248"/>
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white"/>
+</p>
+
+[npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
+
+English · [简体中文](README_zh.md)
+
+</div>
+
+---
 
 Turn your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) into a database assistant. Ask it to query your databases, explore schemas, and write SQL or NoSQL queries — it works with:
 
