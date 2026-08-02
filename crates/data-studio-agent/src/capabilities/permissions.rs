@@ -45,6 +45,33 @@ impl McpPermissionMode {
 pub struct ConnectionMcpOverride {
     /// Read-only for MCP: blocks Elevated/Destructive regardless of global mode
     pub read_only: bool,
+    /// Optional action-level allowlist for this connection.
+    /// When set, only capabilities whose risk maps to a listed action pass;
+    /// `read_only` remains the coarse legacy gate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub allowed_actions: Option<Vec<McpAction>>,
+}
+
+/// Action categories a connection-level override can allow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum McpAction {
+    /// Safe capabilities (queries, metadata)
+    Read,
+    /// Elevated capabilities (insert, update, create)
+    Write,
+    /// Destructive capabilities (delete, drop, truncate)
+    Delete,
+}
+
+impl McpAction {
+    pub fn from_risk(risk: RiskLevel) -> McpAction {
+        match risk {
+            RiskLevel::Safe => McpAction::Read,
+            RiskLevel::Elevated => McpAction::Write,
+            RiskLevel::Destructive => McpAction::Delete,
+        }
+    }
 }
 
 /// MCP permission policy, stored per app and read by the bridge on every request.
@@ -87,6 +114,18 @@ impl McpPolicy {
         self.connection_overrides.get(connection_id).is_some_and(|o| o.read_only)
     }
 
+    /// Whether the connection override allows the risk level's action.
+    /// Falls back to `read_only` when no action allowlist is set.
+    fn connection_allows_action(&self, connection_id: &str, risk: RiskLevel) -> bool {
+        let Some(ov) = self.connection_overrides.get(connection_id) else {
+            return true;
+        };
+        match &ov.allowed_actions {
+            Some(actions) => actions.contains(&McpAction::from_risk(risk)),
+            None => !(ov.read_only && !matches!(risk, RiskLevel::Safe)),
+        }
+    }
+
     /// Whether a capability may run for the given connection.
     /// Compat: `allows()` == `decide() != Deny` (Ask counts as allowed).
     pub fn allows(&self, risk_level: RiskLevel, connection_id: Option<&str>) -> bool {
@@ -99,7 +138,7 @@ impl McpPolicy {
             if !self.is_connection_allowed(id) {
                 return PolicyAction::Deny;
             }
-            if self.is_connection_read_only(id) && !matches!(risk_level, RiskLevel::Safe) {
+            if !self.connection_allows_action(id, risk_level) {
                 return PolicyAction::Deny;
             }
         }
@@ -195,7 +234,7 @@ mod tests {
             mode: McpPermissionMode::FullAccess,
             connection_overrides: HashMap::from([(
                 "prod-es".into(),
-                ConnectionMcpOverride { read_only: true },
+                ConnectionMcpOverride { read_only: true, allowed_actions: None },
             )]),
             ..McpPolicy::default()
         };
@@ -212,7 +251,7 @@ mod tests {
             allowed_connection_ids: vec!["conn-1".into()],
             connection_overrides: HashMap::from([(
                 "conn-1".into(),
-                ConnectionMcpOverride { read_only: true },
+                ConnectionMcpOverride { read_only: true, allowed_actions: None },
             )]),
             confirm_destructive: false,
         };
@@ -293,7 +332,7 @@ mod tests {
             mode: McpPermissionMode::FullAccess,
             connection_overrides: HashMap::from([(
                 "prod-es".into(),
-                ConnectionMcpOverride { read_only: true },
+                ConnectionMcpOverride { read_only: true, allowed_actions: None },
             )]),
             ..McpPolicy::default()
         };
@@ -313,5 +352,68 @@ mod tests {
         assert_eq!(serde_json::to_value(PolicyAction::Allow).unwrap(), json!("allow"));
         assert_eq!(serde_json::to_value(PolicyAction::Ask).unwrap(), json!("ask"));
         assert_eq!(serde_json::to_value(PolicyAction::Deny).unwrap(), json!("deny"));
+    }
+
+    #[test]
+    fn test_connection_action_allowlist_blocks_risks() {
+        // Read-only action list: only Safe capabilities pass
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            connection_overrides: HashMap::from([(
+                "prod".into(),
+                ConnectionMcpOverride {
+                    read_only: false,
+                    allowed_actions: Some(vec![McpAction::Read]),
+                },
+            )]),
+            ..McpPolicy::default()
+        };
+        assert_eq!(policy.decide(RiskLevel::Safe, Some("prod")), PolicyAction::Allow);
+        assert_eq!(policy.decide(RiskLevel::Elevated, Some("prod")), PolicyAction::Deny);
+        assert_eq!(policy.decide(RiskLevel::Destructive, Some("prod")), PolicyAction::Deny);
+    }
+
+    #[test]
+    fn test_connection_action_allowlist_read_write() {
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            connection_overrides: HashMap::from([(
+                "prod".into(),
+                ConnectionMcpOverride {
+                    read_only: false,
+                    allowed_actions: Some(vec![McpAction::Read, McpAction::Write]),
+                },
+            )]),
+            ..McpPolicy::default()
+        };
+        assert_eq!(policy.decide(RiskLevel::Safe, Some("prod")), PolicyAction::Allow);
+        assert_eq!(policy.decide(RiskLevel::Elevated, Some("prod")), PolicyAction::Allow);
+        assert_eq!(policy.decide(RiskLevel::Destructive, Some("prod")), PolicyAction::Deny);
+    }
+
+    #[test]
+    fn test_read_only_legacy_still_works_without_actions() {
+        // Legacy read_only override (no allowed_actions) keeps old behavior
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            connection_overrides: HashMap::from([(
+                "prod".into(),
+                ConnectionMcpOverride { read_only: true, allowed_actions: None },
+            )]),
+            ..McpPolicy::default()
+        };
+        assert_eq!(policy.decide(RiskLevel::Safe, Some("prod")), PolicyAction::Allow);
+        assert_eq!(policy.decide(RiskLevel::Elevated, Some("prod")), PolicyAction::Deny);
+        assert!(policy.is_connection_read_only("prod"));
+    }
+
+    #[test]
+    fn test_mcp_action_serde_names() {
+        assert_eq!(serde_json::to_value(McpAction::Read).unwrap(), json!("read"));
+        assert_eq!(serde_json::to_value(McpAction::Write).unwrap(), json!("write"));
+        assert_eq!(serde_json::to_value(McpAction::Delete).unwrap(), json!("delete"));
+        assert_eq!(McpAction::from_risk(RiskLevel::Safe), McpAction::Read);
+        assert_eq!(McpAction::from_risk(RiskLevel::Elevated), McpAction::Write);
+        assert_eq!(McpAction::from_risk(RiskLevel::Destructive), McpAction::Delete);
     }
 }
