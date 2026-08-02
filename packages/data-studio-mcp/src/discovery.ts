@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export interface BackendInfo {
+export type BackendInfo = {
   name: 'dockit' | 'sqlkit';
   port: number;
   baseUrl: string;
-}
+};
 
 const BACKENDS: ReadonlyArray<{
   name: 'dockit' | 'sqlkit';
@@ -18,7 +18,7 @@ const BACKENDS: ReadonlyArray<{
   { name: 'sqlkit', bundleId: 'club.geekfun.sqlkit', defaultPort: 9121, envVar: 'SQLKIT_MCP_PORT' },
 ];
 
-export function appDataDir(bundleId: string): string {
+export const appDataDir = (bundleId: string): string => {
   const home = os.homedir();
   const platform = os.platform();
 
@@ -26,9 +26,9 @@ export function appDataDir(bundleId: string): string {
   if (platform === 'linux') return path.join(home, '.local', 'share', bundleId);
   if (platform === 'win32') return path.join(home, 'AppData', 'Roaming', bundleId);
   return path.join(home, '.local', 'share', bundleId);
-}
+};
 
-function discoverBackend(cfg: (typeof BACKENDS)[number]): BackendInfo | null {
+const discoverBackend = (cfg: (typeof BACKENDS)[number]): BackendInfo | null => {
   const envPort = process.env[cfg.envVar];
   if (envPort) {
     const port = parseInt(envPort, 10);
@@ -49,8 +49,8 @@ function discoverBackend(cfg: (typeof BACKENDS)[number]): BackendInfo | null {
   }
 
   return null;
-}
+};
 
-export function discoverBackends(): BackendInfo[] {
+export const discoverBackends = (): BackendInfo[] => {
   return BACKENDS.map(discoverBackend).filter((b): b is BackendInfo => b !== null);
-}
+};

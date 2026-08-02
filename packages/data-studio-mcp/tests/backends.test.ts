@@ -5,7 +5,7 @@ import { createBackendClient } from '../src/backends.js';
 let mockServer: Server | null = null;
 let mockPort = 0;
 
-function startMock(failTools = false): Promise<number> {
+const startMock = (failTools = false): Promise<number> => {
   return new Promise(resolve => {
     mockServer = createServer((req, res) => {
       if (req.method === 'POST' && req.url === '/tools') {
@@ -46,7 +46,7 @@ function startMock(failTools = false): Promise<number> {
       resolve(typeof addr === 'object' ? addr!.port : 0);
     });
   });
-}
+};
 
 afterAll(() => {
   mockServer?.close();

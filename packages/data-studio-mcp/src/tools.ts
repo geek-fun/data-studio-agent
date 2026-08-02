@@ -1,20 +1,20 @@
 import type { BackendInfo } from './discovery.js';
 import { createBackendClient, type BridgeToolDef } from './backends.js';
 
-export interface McpToolDef {
+export type McpToolDef = {
   name: string;
   description: string;
   inputSchema: object;
   backendName: string;
   internalName: string;
-}
+};
 
-interface CatalogEntry {
+type CatalogEntry = {
   tool: McpToolDef;
   route: { backendName: 'dockit' | 'sqlkit'; internalName: string };
-}
+};
 
-async function fetchBackendCatalog(backend: BackendInfo): Promise<readonly CatalogEntry[]> {
+const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly CatalogEntry[]> => {
   const client = createBackendClient(backend);
   let bridgeTools: BridgeToolDef[];
   try {
@@ -37,15 +37,17 @@ async function fetchBackendCatalog(backend: BackendInfo): Promise<readonly Catal
       route: { backendName: backend.name, internalName: bt.name },
     } satisfies CatalogEntry;
   });
-}
+};
 
-export async function buildToolCatalog(backends: readonly BackendInfo[]): Promise<{
+export const buildToolCatalog = async (
+  backends: readonly BackendInfo[],
+): Promise<{
   tools: McpToolDef[];
   routeMap: Map<string, { backendName: 'dockit' | 'sqlkit'; internalName: string }>;
-}> {
+}> => {
   const entries = (await Promise.all(backends.map(fetchBackendCatalog))).flat();
   return {
     tools: entries.map(e => e.tool),
     routeMap: new Map(entries.map(e => [e.tool.name, e.route])),
   };
-}
+};
