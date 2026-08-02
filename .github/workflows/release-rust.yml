@@ -3,6 +3,10 @@ name: Release Rust crate
 on:
   push:
     branches: [master]
+    paths-ignore:
+      - 'packages/**'
+      - 'README.md'
+      - 'README_zh.md'
   workflow_dispatch:
 
 concurrency:
@@ -24,7 +28,7 @@ jobs:
       - name: Read version and check tag
         id: version
         run: |
-          VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[0].version')
+          VERSION=$(cargo metadata --manifest-path crates/data-studio-agent/Cargo.toml --format-version 1 --no-deps | jq -r '.packages[] | select(.name == "data-studio-agent") | .version')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           if git tag --list | grep -qx "v$VERSION"; then
             echo "Tag v$VERSION already exists, skipping"
@@ -48,8 +52,8 @@ jobs:
 
       - name: Build & test
         run: |
-          cargo build --all-features
-          cargo test --all-features
+          cargo build --workspace --all-features
+          cargo test --workspace --all-features
 
       - name: Create tag and GitHub release
         uses: actions/github-script@v7
