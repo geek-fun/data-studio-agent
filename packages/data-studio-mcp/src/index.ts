@@ -11,6 +11,9 @@ import {
 import { discoverBackends } from './discovery.js';
 import { createBackendClient } from './backends.js';
 import { buildToolCatalog } from './tools.js';
+import { listConnections } from './connections.js';
+
+const LIST_CONNECTIONS_TOOL = 'data_studio__list_connections';
 
 const errorResult = (text: string): CallToolResult => ({
   content: [{ type: 'text', text }],
@@ -50,21 +53,33 @@ const main = async (): Promise<void> => {
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: tools.map(t => ({
-      name: t.name,
-      description: t.description,
-      inputSchema: {
-        type: 'object' as const,
-        properties: (t.inputSchema as Record<string, unknown>)?.properties as
-          Record<string, object> | undefined,
-        required: (t.inputSchema as Record<string, unknown>)?.required as string[] | undefined,
+    tools: [
+      {
+        name: LIST_CONNECTIONS_TOOL,
+        description:
+          'List all database connections from both dockit and sqlkit. Each entry has { backend, id, name, type } — use id as connection_id when calling database tools.',
+        inputSchema: { type: 'object' as const, properties: {}, required: [] },
       },
-    })),
+      ...tools.map(t => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: {
+          type: 'object' as const,
+          properties: (t.inputSchema as Record<string, unknown>)?.properties as
+            Record<string, object> | undefined,
+          required: (t.inputSchema as Record<string, unknown>)?.required as string[] | undefined,
+        },
+      })),
+    ],
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async request => {
     const toolName = request.params.name;
     const args = (request.params.arguments ?? {}) as Record<string, unknown>;
+
+    if (toolName === LIST_CONNECTIONS_TOOL) {
+      return okResult(await listConnections(clients));
+    }
 
     const route = routeMap.get(toolName);
     if (!route) return errorResult(`Unknown tool: ${toolName}`);

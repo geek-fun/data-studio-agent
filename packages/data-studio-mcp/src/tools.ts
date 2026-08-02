@@ -18,7 +18,7 @@ async function fetchBackendCatalog(backend: BackendInfo): Promise<readonly Catal
   const client = createBackendClient(backend);
   let bridgeTools: BridgeToolDef[];
   try {
-    bridgeTools = await client.listTools();
+    bridgeTools = (await client.listTools()).tools;
   } catch (err) {
     console.error(`Failed to fetch tools from ${backend.name}:`, err);
     return [];

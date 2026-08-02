@@ -25,7 +25,7 @@ function startMock(failTools = false): Promise<number> {
                 metadata: { riskLevel: 'safe' },
               },
             ],
-            connections: [],
+            connections: [{ id: 1, name: 'prod-es', type: 'ELASTICSEARCH' }],
           }),
         );
       } else if (req.method === 'POST' && req.url === '/invoke') {
@@ -53,7 +53,7 @@ afterAll(() => {
 });
 
 describe('BackendClient', () => {
-  it('listTools returns tools from the bridge', async () => {
+  it('listTools returns tools and connections from the bridge', async () => {
     mockPort = await startMock();
     const client = createBackendClient({
       name: 'dockit',
@@ -61,9 +61,10 @@ describe('BackendClient', () => {
       baseUrl: `http://127.0.0.1:${mockPort}`,
     });
 
-    const tools = await client.listTools();
-    expect(tools).toHaveLength(1);
-    expect(tools[0].name).toBe('es__search');
+    const catalog = await client.listTools();
+    expect(catalog.tools).toHaveLength(1);
+    expect(catalog.tools[0].name).toBe('es__search');
+    expect(catalog.connections).toEqual([{ id: 1, name: 'prod-es', type: 'ELASTICSEARCH' }]);
   });
 
   it('listTools throws when bridge returns error', async () => {
