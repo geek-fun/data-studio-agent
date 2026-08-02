@@ -1,3 +1,4 @@
+import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
 import type { BackendInfo } from './discovery.js';
 import { createBackendClient, type BridgeToolDef } from './backends.js';
 
@@ -7,7 +8,35 @@ export type McpToolDef = {
   inputSchema: object;
   backendName: string;
   internalName: string;
+  metadata?: BridgeToolDef['metadata'];
+  annotations?: ToolAnnotations;
 };
+
+type RiskLevel = 'safe' | 'elevated' | 'destructive';
+
+const ANNOTATIONS_BY_RISK: Record<RiskLevel, ToolAnnotations> = {
+  safe: {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+    openWorldHint: false,
+  },
+  elevated: {
+    readOnlyHint: false,
+    destructiveHint: false,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+  destructive: {
+    readOnlyHint: false,
+    destructiveHint: true,
+    idempotentHint: false,
+    openWorldHint: true,
+  },
+};
+
+export const buildToolAnnotations = (riskLevel: RiskLevel | undefined): ToolAnnotations =>
+  riskLevel ? ANNOTATIONS_BY_RISK[riskLevel] : {};
 
 type CatalogEntry = {
   tool: McpToolDef;
@@ -33,6 +62,8 @@ const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly Catal
         inputSchema: bt.inputSchema,
         backendName: backend.name,
         internalName: bt.name,
+        metadata: bt.metadata,
+        annotations: buildToolAnnotations(bt.metadata?.riskLevel),
       },
       route: { backendName: backend.name, internalName: bt.name },
     } satisfies CatalogEntry;
