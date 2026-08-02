@@ -15,10 +15,10 @@ How to add the shared agent library to a new (or existing) Tauri application.
 data-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v0.1.0" }
 ```
 
-During local development:
+During local development (crate lives at `crates/data-studio-agent` in the repo):
 
 ```toml
-data-studio-agent = { path = "../../data-studio-agent" }
+data-studio-agent = { path = "../../data-studio-agent/crates/data-studio-agent" }
 ```
 
 ## Step 2: Initialize the Database
@@ -26,7 +26,7 @@ data-studio-agent = { path = "../../data-studio-agent" }
 In your `lib.rs` setup closure:
 
 ```rust
-use data_studio_agent_storage_sqlite as storage;
+use data_studio_agent::storage;
 
 .setup(|app| {
     let app_data_dir = app.path().app_data_dir()?;
@@ -46,11 +46,11 @@ use data_studio_agent_storage_sqlite as storage;
 
 ## Step 3: Implement ToolExecutor
 
-Create a struct that implements `data_studio_agent_lib::tool_executor::ToolExecutor`:
+Create a struct that implements `data_studio_agent::tool_executor::ToolExecutor`:
 
 ```rust
 use async_trait::async_trait;
-use data_studio_agent_lib::tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
+use data_studio_agent::tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
 use serde_json::Value;
 
 pub struct MyToolExecutor;
@@ -100,7 +100,7 @@ Register it in setup:
 
 ```rust
 use std::sync::Arc;
-let executor: Arc<dyn data_studio_agent_lib::ToolExecutor> = Arc::new(MyToolExecutor);
+let executor: Arc<dyn data_studio_agent::ToolExecutor> = Arc::new(MyToolExecutor);
 app.manage(executor);
 ```
 
@@ -112,9 +112,9 @@ Create `src/agent_adapters.rs` with Tauri command wrappers:
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use data_studio_agent_lib as lib;
-use data_studio_agent_lib::traits::{CancelMap, ConfirmMap, EventEmitter};
-use data_studio_agent_storage_sqlite as storage;
+use data_studio_agent as lib;
+use data_studio_agent::traits::{CancelMap, ConfirmMap, EventEmitter};
+use data_studio_agent::storage;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -237,7 +237,7 @@ If you prefer a different storage backend, implement the `SessionStore` trait di
 
 ```rust
 use async_trait::async_trait;
-use data_studio_agent_lib::traits::{SessionStore, StoredMessage};
+use data_studio_agent::traits::{SessionStore, StoredMessage};
 use std::sync::Arc;
 use tokio::sync::Mutex as AsyncMutex;
 
