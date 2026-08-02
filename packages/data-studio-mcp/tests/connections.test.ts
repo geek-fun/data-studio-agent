@@ -5,9 +5,9 @@ import { listConnections } from '../src/connections.js';
 
 const servers: Server[] = [];
 
-async function startBackend(
+const startBackend = async (
   connections: Array<{ id: number; name: string; type: string }>,
-): Promise<number> {
+): Promise<number> => {
   return new Promise(resolve => {
     const server = createServer((req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -19,7 +19,7 @@ async function startBackend(
       resolve(typeof addr === 'object' ? addr!.port : 0);
     });
   });
-}
+};
 
 afterAll(() => {
   servers.forEach(s => s.close());

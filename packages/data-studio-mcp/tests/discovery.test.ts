@@ -23,11 +23,11 @@ afterEach(() => {
 });
 
 // Need to dynamically import after setting up mock dir
-async function getDiscovery() {
+const getDiscovery = async () => {
   // Recreate test dir
   fs.mkdirSync(testDir, { recursive: true });
   return await import('../src/discovery.js');
-}
+};
 
 describe('discoverBackends', () => {
   it('returns empty array when no backends found', async () => {

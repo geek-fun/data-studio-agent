@@ -1,6 +1,6 @@
 import type { BackendInfo } from './discovery.js';
 
-export interface BridgeToolDef {
+export type BridgeToolDef = {
   name: string;
   description: string;
   inputSchema: object;
@@ -8,33 +8,33 @@ export interface BridgeToolDef {
     riskLevel?: string;
     requiredPermission?: string;
   };
-}
+};
 
-export interface InvokeResult {
+export type InvokeResult = {
   status: number;
   data?: unknown;
   message?: string;
-}
+};
 
-export interface BridgeConnection {
+export type BridgeConnection = {
   id: unknown;
   name: string;
   type: string;
-}
+};
 
-export interface BridgeCatalog {
+export type BridgeCatalog = {
   tools: BridgeToolDef[];
   connections: BridgeConnection[];
-}
+};
 
-export interface BackendClient {
+export type BackendClient = {
   readonly name: string;
   readonly baseUrl: string;
   listTools(): Promise<BridgeCatalog>;
   invokeTool(name: string, args: Record<string, unknown>): Promise<InvokeResult>;
-}
+};
 
-export function createBackendClient(info: BackendInfo): BackendClient {
+export const createBackendClient = (info: BackendInfo): BackendClient => {
   return {
     get name() {
       return info.name;
@@ -74,4 +74,4 @@ export function createBackendClient(info: BackendInfo): BackendClient {
       return (await res.json()) as InvokeResult;
     },
   };
-}
+};

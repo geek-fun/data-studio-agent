@@ -1,15 +1,15 @@
 import type { BackendClient } from './backends.js';
 
-export interface MergedConnection {
+export type MergedConnection = {
   backend: string;
   id: unknown;
   name: string;
   type: string;
-}
+};
 
-export async function listConnections(
+export const listConnections = async (
   clients: Map<string, BackendClient>,
-): Promise<MergedConnection[]> {
+): Promise<MergedConnection[]> => {
   const results = await Promise.all(
     [...clients.entries()].map(async ([backend, client]) => {
       try {
@@ -21,4 +21,4 @@ export async function listConnections(
     }),
   );
   return results.flat();
-}
+};
