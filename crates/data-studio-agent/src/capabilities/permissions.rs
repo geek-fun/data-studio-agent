@@ -154,6 +154,65 @@ impl McpPolicy {
             PolicyAction::Allow
         }
     }
+
+    /// Human-readable, actionable reason a capability was denied.
+    /// Mirrors the `decide()` check order: connection allowlist → override
+    /// action → confirm_destructive → mode. Returns None when allowed (or Ask).
+    pub fn deny_reason(&self, risk_level: RiskLevel, connection_id: Option<&str>) -> Option<String> {
+        if let Some(id) = connection_id {
+            if !self.is_connection_allowed(id) {
+                return Some(format!(
+                    "connection '{id}' is not in the MCP allowlist — add it in Settings → MCP Bridge"
+                ));
+            }
+            if !self.connection_allows_action(id, risk_level) {
+                return Some(format!(
+                    "connection '{id}' is read-only or lacks the required action — adjust its override in Settings → MCP Bridge"
+                ));
+            }
+        }
+        if !self.confirm_destructive && matches!(risk_level, RiskLevel::Destructive) {
+            return Some(
+                "destructive operations are disabled — enable 'Confirm Destructive Operations' in Settings → MCP Bridge"
+                    .into(),
+            );
+        }
+        if !self.mode.allows(risk_level) {
+            let required = match risk_level {
+                RiskLevel::Safe => McpPermissionMode::ReadOnly,
+                RiskLevel::Elevated => McpPermissionMode::DataReadWrite,
+                RiskLevel::Destructive => McpPermissionMode::FullAccess,
+            };
+            return Some(format!(
+                "requires {required:?} permission mode — switch it in Settings → MCP Bridge"
+            ));
+        }
+        None
+    }
+
+    /// Policy notice appended to every tool description in `tools/list`, so
+    /// clients (LLMs) learn what is gated and how to lift the gate without
+    /// calling hidden tools (mirrors Neon MCP's read-only notice).
+    pub fn policy_notice(&self) -> Option<String> {
+        let mut parts: Vec<String> = Vec::new();
+        if !self.mode.allows(RiskLevel::Destructive) || !self.confirm_destructive {
+            parts.push(
+                "destructive operations (delete/drop/truncate) are hidden — enable Full Access with Confirm Destructive in Settings → MCP Bridge to use them"
+                    .into(),
+            );
+        }
+        if !self.mode.allows(RiskLevel::Elevated) {
+            parts.push(
+                "write operations (insert/update/create) are hidden — enable Data Read/Write or Full Access in Settings → MCP Bridge to use them"
+                    .into(),
+            );
+        }
+        if parts.is_empty() {
+            None
+        } else {
+            Some(format!("MCP policy notice: {}", parts.join(" ")))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -217,6 +276,81 @@ mod tests {
         };
         // Mode gate still applies — DataReadWrite blocks Destructive regardless
         assert!(!readonly_policy.allows(RiskLevel::Destructive, None));
+    }
+
+    #[test]
+    fn test_deny_reason_guides_mode_upgrade() {
+        let policy = McpPolicy::default();
+        assert_eq!(
+            policy.deny_reason(RiskLevel::Destructive, None),
+            Some("requires FullAccess permission mode — switch it in Settings → MCP Bridge".into())
+        );
+        let read_only = McpPolicy { mode: McpPermissionMode::ReadOnly, ..McpPolicy::default() };
+        assert_eq!(
+            read_only.deny_reason(RiskLevel::Elevated, None),
+            Some("requires DataReadWrite permission mode — switch it in Settings → MCP Bridge".into())
+        );
+        // Allowed capabilities have no reason
+        assert_eq!(policy.deny_reason(RiskLevel::Safe, None), None);
+        assert_eq!(policy.deny_reason(RiskLevel::Elevated, None), None);
+    }
+
+    #[test]
+    fn test_deny_reason_guides_confirm_destructive() {
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            confirm_destructive: false,
+            ..McpPolicy::default()
+        };
+        assert_eq!(
+            policy.deny_reason(RiskLevel::Destructive, None),
+            Some("destructive operations are disabled — enable 'Confirm Destructive Operations' in Settings → MCP Bridge".into())
+        );
+    }
+
+    #[test]
+    fn test_deny_reason_guides_connection_override() {
+        let policy = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            confirm_destructive: true,
+            allowed_connection_ids: vec!["conn-1".into()],
+            connection_overrides: [(
+                "conn-1".into(),
+                ConnectionMcpOverride { read_only: true, allowed_actions: None },
+            )]
+            .into(),
+        };
+        assert_eq!(
+            policy.deny_reason(RiskLevel::Safe, Some("conn-2")),
+            Some("connection 'conn-2' is not in the MCP allowlist — add it in Settings → MCP Bridge".into())
+        );
+        assert_eq!(
+            policy.deny_reason(RiskLevel::Elevated, Some("conn-1")),
+            Some("connection 'conn-1' is read-only or lacks the required action — adjust its override in Settings → MCP Bridge".into())
+        );
+        // FullAccess + confirm on + safe connection: no reason
+        assert_eq!(policy.deny_reason(RiskLevel::Safe, Some("conn-1")), None);
+    }
+
+    #[test]
+    fn test_policy_notice_reflects_gated_risks() {
+        // Default DataReadWrite hides Destructive → notice mentions it
+        let default = McpPolicy::default();
+        let notice = default.policy_notice().unwrap();
+        assert!(notice.contains("destructive operations"));
+        assert!(!notice.contains("write operations"));
+        // ReadOnly hides both
+        let read_only = McpPolicy { mode: McpPermissionMode::ReadOnly, ..McpPolicy::default() };
+        let notice = read_only.policy_notice().unwrap();
+        assert!(notice.contains("destructive operations"));
+        assert!(notice.contains("write operations"));
+        // FullAccess + confirm on hides nothing
+        let full = McpPolicy {
+            mode: McpPermissionMode::FullAccess,
+            confirm_destructive: true,
+            ..McpPolicy::default()
+        };
+        assert_eq!(full.policy_notice(), None);
     }
 
     #[test]
