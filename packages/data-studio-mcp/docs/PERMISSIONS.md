@@ -46,7 +46,25 @@ The mode is set per app (dockit and sqlkit independently). The MCP server querie
 
 When **ON** (default): Destructive tools are listed in `tools/list` with `destructiveHint: true` so clients can show a confirmation prompt, but the bridge still enforces that only Full Access mode actually executes them.
 
-When **OFF**: Destructive tools are hidden entirely from `tools/list`. The agent never sees them.
+When **OFF**: Destructive tools are hidden from `tools/list`. The agent never sees them directly.
+
+### Policy notice on surviving tools
+
+Whether a tool class is gated (by mode or by the confirm-destructive toggle), every surviving tool description carries a `MCP policy notice` explaining what is hidden and how to lift the gate:
+
+> MCP policy notice: destructive operations (delete/drop/truncate) are hidden — enable Full Access with Confirm Destructive in Settings → MCP Bridge to use them
+
+This mirrors the [Neon MCP server's read-only notice](https://github.com/neondatabase/mcp-server-neon/blob/main/mcp/tools/grant-filter.ts). The agent learns at discovery time that the capability exists but is gated, and can guide the user to enable it — instead of being unaware of the capability, or planning around tools that are visible but always fail.
+
+### Deny errors carry actionable guidance
+
+When a denied capability is invoked directly (defense-in-depth against bypassing `tools/list`), the bridge returns a 403-style error whose message tells the agent what to enable:
+
+- `requires FullAccess permission mode — switch it in Settings → MCP Bridge`
+- `destructive operations are disabled — enable 'Confirm Destructive Operations' in Settings → MCP Bridge`
+- `connection '<id>' is not in the MCP allowlist — add it in Settings → MCP Bridge`
+
+The agent can relay this to the user verbatim.
 
 ### Connection allowlist
 
@@ -266,7 +284,7 @@ approval_mode = "writes"
 
 1. **Client UX layer**: Your AI tool reads `ToolAnnotations` from `tools/list` and can show confirmation dialogs for `destructiveHint: true` tools. This is a convenience feature. It depends on the client implementing the annotation check.
 
-2. **Server enforcement layer**: The dockit/sqlkit bridge enforces the permission mode regardless of client behavior. If the bridge is in Read Only mode, it rejects Elevated and Destructive calls at the HTTP level. The MCP server passes through the rejection as an error result.
+2. **Server enforcement layer**: The dockit/sqlkit bridge enforces the permission mode regardless of client behavior. If the bridge is in Read Only mode, it rejects Elevated and Destructive calls at the HTTP level. The MCP server passes through the rejection as an error result. Denied calls carry actionable guidance (see [Deny errors](#deny-errors-carry-actionable-guidance)) so agents can tell the user how to lift the gate.
 
 ### Network binding
 
