@@ -158,7 +158,11 @@ impl McpPolicy {
     /// Human-readable, actionable reason a capability was denied.
     /// Mirrors the `decide()` check order: connection allowlist → override
     /// action → confirm_destructive → mode. Returns None when allowed (or Ask).
-    pub fn deny_reason(&self, risk_level: RiskLevel, connection_id: Option<&str>) -> Option<String> {
+    pub fn deny_reason(
+        &self,
+        risk_level: RiskLevel,
+        connection_id: Option<&str>,
+    ) -> Option<String> {
         if let Some(id) = connection_id {
             if !self.is_connection_allowed(id) {
                 return Some(format!(
@@ -288,7 +292,10 @@ mod tests {
         let read_only = McpPolicy { mode: McpPermissionMode::ReadOnly, ..McpPolicy::default() };
         assert_eq!(
             read_only.deny_reason(RiskLevel::Elevated, None),
-            Some("requires DataReadWrite permission mode — switch it in Settings → MCP Bridge".into())
+            Some(
+                "requires DataReadWrite permission mode — switch it in Settings → MCP Bridge"
+                    .into()
+            )
         );
         // Allowed capabilities have no reason
         assert_eq!(policy.deny_reason(RiskLevel::Safe, None), None);
@@ -322,7 +329,10 @@ mod tests {
         };
         assert_eq!(
             policy.deny_reason(RiskLevel::Safe, Some("conn-2")),
-            Some("connection 'conn-2' is not in the MCP allowlist — add it in Settings → MCP Bridge".into())
+            Some(
+                "connection 'conn-2' is not in the MCP allowlist — add it in Settings → MCP Bridge"
+                    .into()
+            )
         );
         assert_eq!(
             policy.deny_reason(RiskLevel::Elevated, Some("conn-1")),
