@@ -2,14 +2,16 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+export type BackendName = 'dockit' | 'sqlkit';
+
 export type BackendInfo = {
-  name: 'dockit' | 'sqlkit';
+  name: BackendName;
   port: number;
   baseUrl: string;
 };
 
-const BACKENDS: ReadonlyArray<{
-  name: 'dockit' | 'sqlkit';
+export const KNOWN_BACKENDS: ReadonlyArray<{
+  name: BackendName;
   bundleId: string;
   defaultPort: number;
   envVar: string;
@@ -18,8 +20,17 @@ const BACKENDS: ReadonlyArray<{
   { name: 'sqlkit', bundleId: 'club.geekfun.sqlkit', defaultPort: 9121, envVar: 'SQLKIT_MCP_PORT' },
 ];
 
+export const displayName = (name: BackendName): string => (name === 'dockit' ? 'DocKit' : 'SqlKit');
+
+export const launchHint = (name: BackendName): string => {
+  const app = displayName(name);
+  if (process.platform === 'darwin') return `Launch ${app}: open -a ${app}`;
+  if (process.platform === 'win32') return `Launch ${app} from the Start menu`;
+  return `Launch ${app} from your applications menu`;
+};
+
 export const appDataDir = (bundleId: string): string => {
-  const home = os.homedir();
+  const home = process.env.DATA_STUDIO_DATA_DIR ?? os.homedir();
   const platform = os.platform();
 
   if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', bundleId);
@@ -28,7 +39,7 @@ export const appDataDir = (bundleId: string): string => {
   return path.join(home, '.local', 'share', bundleId);
 };
 
-const discoverBackend = (cfg: (typeof BACKENDS)[number]): BackendInfo | null => {
+const discoverBackend = (cfg: (typeof KNOWN_BACKENDS)[number]): BackendInfo | null => {
   const envPort = process.env[cfg.envVar];
   if (envPort) {
     const port = parseInt(envPort, 10);
@@ -52,5 +63,5 @@ const discoverBackend = (cfg: (typeof BACKENDS)[number]): BackendInfo | null => 
 };
 
 export const discoverBackends = (): BackendInfo[] => {
-  return BACKENDS.map(discoverBackend).filter((b): b is BackendInfo => b !== null);
+  return KNOWN_BACKENDS.map(discoverBackend).filter((b): b is BackendInfo => b !== null);
 };
