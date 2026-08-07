@@ -4,6 +4,7 @@ import { createBackendClient, probeBackend } from '../src/backends.js';
 
 let mockServer: Server | null = null;
 let mockPort = 0;
+let lastInvokeBody: unknown = null;
 
 const startMock = (failTools = false): Promise<number> => {
   return new Promise(resolve => {
@@ -29,13 +30,18 @@ const startMock = (failTools = false): Promise<number> => {
           }),
         );
       } else if (req.method === 'POST' && req.url === '/invoke') {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(
-          JSON.stringify({
-            status: 200,
-            data: { hits: [{ _source: { title: 'doc1' } }] },
-          }),
-        );
+        let raw = '';
+        req.on('data', chunk => (raw += chunk));
+        req.on('end', () => {
+          lastInvokeBody = JSON.parse(raw);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(
+            JSON.stringify({
+              status: 200,
+              data: { hits: [{ _source: { title: 'doc1' } }] },
+            }),
+          );
+        });
       } else {
         res.writeHead(404);
         res.end();
@@ -99,6 +105,40 @@ describe('BackendClient', () => {
     const result = await client.invokeTool('es__search', { index: 'test' });
     expect(result.status).toBe(200);
     expect(result.data).toEqual({ hits: [{ _source: { title: 'doc1' } }] });
+  });
+
+  it('invokeTool hoists connection_id to the top level of the request body', async () => {
+    if (!mockPort) mockPort = await startMock();
+    const client = createBackendClient({
+      name: 'dockit',
+      port: mockPort,
+      baseUrl: `http://127.0.0.1:${mockPort}`,
+    });
+
+    const result = await client.invokeTool('sqlkit__list_databases', {
+      connection_id: 'si-console-local',
+    });
+    expect(result.status).toBe(200);
+    expect(lastInvokeBody).toEqual({
+      name: 'sqlkit__list_databases',
+      args: {},
+      connection_id: 'si-console-local',
+    });
+  });
+
+  it('invokeTool leaves the request body untouched when no connection_id is given', async () => {
+    if (!mockPort) mockPort = await startMock();
+    const client = createBackendClient({
+      name: 'dockit',
+      port: mockPort,
+      baseUrl: `http://127.0.0.1:${mockPort}`,
+    });
+
+    await client.invokeTool('es__search', { index: 'test', size: 10 });
+    expect(lastInvokeBody).toEqual({
+      name: 'es__search',
+      args: { index: 'test', size: 10 },
+    });
   });
 
   it('exposes name and baseUrl', async () => {

@@ -64,10 +64,17 @@ export const createBackendClient = (info: BackendInfo): BackendClient => {
     },
 
     async invokeTool(name: string, args: Record<string, unknown>): Promise<InvokeResult> {
+      // Bridge InvokeRequest requires connection_id at top level, not inside args
+      const { connection_id, ...restArgs } = args;
+      const body =
+        connection_id === undefined
+          ? { name, args: restArgs }
+          : { name, args: restArgs, connection_id };
+
       const res = await fetch(`${info.baseUrl}/invoke`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, args }),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(30_000),
       });
 
