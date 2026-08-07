@@ -2,21 +2,23 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { appDataDir } from '../src/discovery.js';
+import { appDataDir, KNOWN_BACKENDS, launchHint } from '../src/discovery.js';
 
-// Mock fs and os before importing discovery
-const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-test-'));
+// Isolate discovery from the developer's real app data dir — stale port files
+// on machines with the apps installed would otherwise break these tests.
+const testHomeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mcp-home-'));
 
 beforeEach(() => {
   // Clean any leftover env vars
   delete process.env.DOCKIT_MCP_PORT;
   delete process.env.SQLKIT_MCP_PORT;
+  process.env.DATA_STUDIO_DATA_DIR = testHomeDir;
 });
 
 afterEach(() => {
   // Clean up test dir contents
   try {
-    fs.rmSync(testDir, { recursive: true, force: true });
+    fs.rmSync(testHomeDir, { recursive: true, force: true });
   } catch {
     // ignore
   }
@@ -25,7 +27,7 @@ afterEach(() => {
 // Need to dynamically import after setting up mock dir
 const getDiscovery = async () => {
   // Recreate test dir
-  fs.mkdirSync(testDir, { recursive: true });
+  fs.mkdirSync(testHomeDir, { recursive: true });
   return await import('../src/discovery.js');
 };
 
@@ -125,5 +127,28 @@ describe('discoverBackends', () => {
     expect(backends).toHaveLength(0);
 
     fs.rmSync(bundleDir, { recursive: true, force: true });
+  });
+});
+
+describe('KNOWN_BACKENDS', () => {
+  it('lists dockit and sqlkit with env vars and default ports', () => {
+    expect(KNOWN_BACKENDS.map(b => b.name)).toEqual(['dockit', 'sqlkit']);
+    expect(KNOWN_BACKENDS[0]).toMatchObject({
+      name: 'dockit',
+      envVar: 'DOCKIT_MCP_PORT',
+      defaultPort: 9120,
+    });
+    expect(KNOWN_BACKENDS[1]).toMatchObject({
+      name: 'sqlkit',
+      envVar: 'SQLKIT_MCP_PORT',
+      defaultPort: 9121,
+    });
+  });
+});
+
+describe('launchHint', () => {
+  it('mentions the app name for each backend', () => {
+    expect(launchHint('dockit')).toContain('DocKit');
+    expect(launchHint('sqlkit')).toContain('SqlKit');
   });
 });
