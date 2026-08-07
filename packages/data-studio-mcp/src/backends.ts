@@ -75,3 +75,13 @@ export const createBackendClient = (info: BackendInfo): BackendClient => {
     },
   };
 };
+
+/** Any HTTP response (even 404) proves the port is listening — guards against stale port files. */
+export const probeBackend = async (info: BackendInfo): Promise<boolean> => {
+  try {
+    await fetch(info.baseUrl, { signal: AbortSignal.timeout(1_500) });
+    return true;
+  } catch {
+    return false;
+  }
+};

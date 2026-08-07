@@ -1,6 +1,6 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { createBackendClient } from '../src/backends.js';
+import { createBackendClient, probeBackend } from '../src/backends.js';
 
 let mockServer: Server | null = null;
 let mockPort = 0;
@@ -110,5 +110,22 @@ describe('BackendClient', () => {
 
     expect(client.name).toBe('dockit');
     expect(client.baseUrl).toBe('http://127.0.0.1:9120');
+  });
+});
+
+describe('probeBackend', () => {
+  it('returns true for a reachable backend', async () => {
+    const port = await startMock();
+    const ok = await probeBackend({
+      name: 'dockit',
+      port,
+      baseUrl: `http://127.0.0.1:${port}`,
+    });
+    expect(ok).toBe(true);
+  });
+
+  it('returns false for an unreachable backend', async () => {
+    const ok = await probeBackend({ name: 'dockit', port: 1, baseUrl: 'http://127.0.0.1:1' });
+    expect(ok).toBe(false);
   });
 });
