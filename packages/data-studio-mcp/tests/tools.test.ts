@@ -1,6 +1,10 @@
 import { describe, it, expect, afterAll } from 'vitest';
 import { createServer, type Server } from 'node:http';
-import { buildToolCatalog, buildToolAnnotations } from '../src/tools.js';
+import {
+  buildToolCatalog,
+  buildToolAnnotations,
+  buildBackendRequirementNote,
+} from '../src/tools.js';
 
 const mockServers: Server[] = [];
 
@@ -100,7 +104,39 @@ describe('fetchBackendCatalog', () => {
   });
 });
 
+describe('buildBackendRequirementNote', () => {
+  it('includes the backend display name and port', () => {
+    const note = buildBackendRequirementNote({
+      name: 'dockit',
+      port: 9120,
+      baseUrl: 'http://127.0.0.1:9120',
+    });
+    expect(note).toContain('Requires DocKit running on localhost:9120');
+    expect(note).toContain('data_studio__get_status');
+  });
+});
+
 describe('buildToolCatalog', () => {
+  it('appends the backend requirement note to every tool description', async () => {
+    const port = await startMockBackend([
+      {
+        name: 'es__search',
+        description: 'Search an index',
+        inputSchema: { type: 'object' },
+        metadata: { riskLevel: 'safe' },
+      },
+    ]);
+
+    const { tools } = await buildToolCatalog([
+      { name: 'dockit', port, baseUrl: `http://127.0.0.1:${port}` },
+    ]);
+
+    expect(tools).toHaveLength(1);
+    expect(tools[0].description).toContain('Search an index');
+    expect(tools[0].description).toContain(`Requires DocKit running on localhost:${port}`);
+    expect(tools[0].description).toContain('data_studio__get_status');
+  });
+
   it('returns empty catalog when no backends', async () => {
     const { tools, routeMap } = await buildToolCatalog([]);
     expect(tools).toEqual([]);

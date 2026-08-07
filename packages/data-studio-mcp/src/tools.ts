@@ -1,5 +1,5 @@
 import type { ToolAnnotations } from '@modelcontextprotocol/sdk/types.js';
-import type { BackendInfo } from './discovery.js';
+import { displayName, type BackendInfo, type BackendName } from './discovery.js';
 import { createBackendClient, type BridgeToolDef } from './backends.js';
 
 export type McpToolDef = {
@@ -38,10 +38,15 @@ const ANNOTATIONS_BY_RISK: Record<RiskLevel, ToolAnnotations> = {
 export const buildToolAnnotations = (riskLevel: RiskLevel | undefined): ToolAnnotations =>
   riskLevel ? ANNOTATIONS_BY_RISK[riskLevel] : {};
 
+export type Route = { backendName: BackendName; internalName: string };
+
 type CatalogEntry = {
   tool: McpToolDef;
-  route: { backendName: 'dockit' | 'sqlkit'; internalName: string };
+  route: Route;
 };
+
+export const buildBackendRequirementNote = (backend: BackendInfo): string =>
+  `⚠️ Requires ${displayName(backend.name)} running on localhost:${backend.port}. If unavailable, call data_studio__get_status.`;
 
 const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly CatalogEntry[]> => {
   const client = createBackendClient(backend);
@@ -53,12 +58,15 @@ const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly Catal
     return [];
   }
 
+  const note = buildBackendRequirementNote(backend);
   return bridgeTools.map(bt => {
     const mcpName = `data_studio__${backend.name}__${bt.name}`;
     return {
       tool: {
         name: mcpName,
-        description: bt.description,
+        description: bt.description.includes('data_studio__get_status')
+          ? bt.description
+          : `${bt.description}\n\n${note}`,
         inputSchema: bt.inputSchema,
         backendName: backend.name,
         internalName: bt.name,
