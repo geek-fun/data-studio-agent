@@ -1,8 +1,27 @@
+import { readFileSync } from 'node:fs';
+
 import type { BackendClient } from './backends.js';
 import type { BackendName } from './discovery.js';
 import { buildToolAnnotations, type McpToolDef, type Route } from './tools.js';
 
-export const SERVER_VERSION = '0.1.5';
+/**
+ * Read the package version from the nearest package.json so the reported
+ * SERVER_VERSION can never drift from the published version again. The build
+ * copies package.json into dist/, keeping the relative path identical between
+ * src (dev/tsx) and dist (production) layouts.
+ */
+const loadServerVersion = (): string => {
+  try {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      version?: string;
+    };
+    return pkg.version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+};
+
+export const SERVER_VERSION = loadServerVersion();
 
 export type BackendStatus = {
   name: BackendName;

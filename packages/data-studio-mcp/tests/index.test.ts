@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, it, expect } from 'vitest';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -10,7 +12,12 @@ import {
   LIST_CONNECTIONS_TOOL,
   type BuildServerOptions,
 } from '../src/index.js';
-import { GET_STATUS_TOOL, type BackendStatus, type RegistrySnapshot } from '../src/status.js';
+import {
+  GET_STATUS_TOOL,
+  SERVER_VERSION,
+  type BackendStatus,
+  type RegistrySnapshot,
+} from '../src/status.js';
 import { buildToolAnnotations, type McpToolDef, type Route } from '../src/tools.js';
 import type { BackendClient } from '../src/backends.js';
 
@@ -54,6 +61,15 @@ const connectPair = async (server: Server) => {
 
 const textOf = (result: { content: Array<{ type: string; text?: string }> }): string =>
   result.content.find(c => c.type === 'text')?.text ?? '';
+
+describe('SERVER_VERSION', () => {
+  it('matches the version in package.json (never drifts)', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+      version: string;
+    };
+    expect(SERVER_VERSION).toBe(pkg.version);
+  });
+});
 
 describe('parseReadonly', () => {
   it('is true when --readonly is present', () => {
