@@ -1,6 +1,6 @@
 {
   "name": "@geek-fun/data-studio-mcp",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Unified MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
   "keywords": [
     "mcp",
@@ -47,17 +47,17 @@
     "@modelcontextprotocol/sdk": "^1.30.0"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "@types/node": "^22.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.1.2",
+    "@typescript-eslint/eslint-plugin": "^8.66.0",
+    "@typescript-eslint/parser": "^8.66.0",
     "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^9.39.5",
+    "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.6",
-    "globals": "^17.8.0",
+    "globals": "^17.9.0",
     "prettier": "^3.9.6",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10"
   },
   "engines": {
