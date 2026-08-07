@@ -64,12 +64,13 @@ export const createBackendClient = (info: BackendInfo): BackendClient => {
     },
 
     async invokeTool(name: string, args: Record<string, unknown>): Promise<InvokeResult> {
-      // Bridge InvokeRequest requires connection_id at top level, not inside args
+      // Bridge InvokeRequest requires connection_id at top level, not inside args.
+      // Normalize to string: dockit connection ids are numbers, bridge expects string.
       const { connection_id, ...restArgs } = args;
       const body =
         connection_id === undefined
           ? { name, args: restArgs }
-          : { name, args: restArgs, connection_id };
+          : { name, args: restArgs, connection_id: String(connection_id) };
 
       const res = await fetch(`${info.baseUrl}/invoke`, {
         method: 'POST',

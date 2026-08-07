@@ -141,6 +141,26 @@ describe('BackendClient', () => {
     });
   });
 
+  it('invokeTool stringifies numeric connection_id (dockit ids are numbers)', async () => {
+    if (!mockPort) mockPort = await startMock();
+    const client = createBackendClient({
+      name: 'dockit',
+      port: mockPort,
+      baseUrl: `http://127.0.0.1:${mockPort}`,
+    });
+
+    const result = await client.invokeTool('es__search', {
+      connection_id: 2,
+      index: 'test',
+    });
+    expect(result.status).toBe(200);
+    expect(lastInvokeBody).toEqual({
+      name: 'es__search',
+      args: { index: 'test' },
+      connection_id: '2',
+    });
+  });
+
   it('exposes name and baseUrl', async () => {
     const client = createBackendClient({
       name: 'dockit',
