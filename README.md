@@ -150,116 +150,93 @@ Designed for security-first teams. The LLM is a privileged-but-contained actor: 
 - **Action-level statement classification** — SQL is parsed and classified by statement kind (Read / Write / Delete / DDL) before execution. Write-only tools reject DELETE statements; delete tools reject DDL — no accidental escalation.
 - **Local-only bridge** — the bridge binds to `127.0.0.1` exclusively — unreachable from other machines. A thin routing layer with no server to host, no API keys to manage, nothing exposed to the network.
 
-## Tool naming
+## Tool reference
 
-All tools follow the `data_studio__{backend}__{action}` convention — the MCP server prefixes every bridge tool with `data_studio__`. Risk levels (🟢 Safe / 🟡 Elevated / 🔴 Destructive) gate exposure via the permission model: Safe tools run under Read Only; Elevated requires Data Read-Write; Destructive requires Full Access + explicit confirmation.
+All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run — nothing destructive ever executes silently.
 
-### MCP server tools (always available)
+| Tool | Backend | Risk | Requires permission | User confirmation |
+|---|---|---|---|---|
+| `data_studio__list_connections` | Server | 🟢 Safe | Read Only | No |
+| `data_studio__get_status` | Server | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__list_connections` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__list_databases` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__list_schemas` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__list_tables` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__get_schema` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__describe_table` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__explain_query` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__execute_write` | sqlkit | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__sqlkit__execute_delete` | sqlkit | 🔴 Destructive | Full Access | Yes |
+| `data_studio__sqlkit__execute_ddl` | sqlkit | 🔴 Destructive | Full Access | Yes |
+| `data_studio__es__search` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__es__get_document` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__es__cat_indices` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__es__get_mapping` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__es__cat_aliases` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__es__get_alias` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__es__index_document` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__es__update_document` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__es__create_index` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__es__put_mapping` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__es__put_alias` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__es__update_aliases` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__es__delete_document` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__es__delete_by_query` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__es__delete_index` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__es__delete_alias` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__mongo__list_databases` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__list_collections` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__find` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__collection_stats` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__database_stats` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__server_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__repl_set_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__shard_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__count_documents` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__list_indexes` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__sample_documents` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__mongo__aggregate` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__insert_one` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__update_many` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__update_document` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__create_database` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__create_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__rename_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__clone_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__create_index` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__drop_index` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__mongo__delete_many` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__mongo__delete_document` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__mongo__drop_collection` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__mongo__drop_database` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__mongo__truncate_collection` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dynamo__execute_query` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__describe_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__list_tables` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__query_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__scan_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__describe_continuous_backups` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__describe_ttl` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__get_table_metrics` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dynamo__execute_write` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__create_item` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__batch_write_items` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__update_item` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__create_gsi` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__update_gsi` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__create_table` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__update_table_config` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__update_ttl` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__update_pitr` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__update_streams` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dynamo__execute_delete` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dynamo__delete_item` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dynamo__delete_gsi` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dynamo__delete_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dynamo__truncate_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
 
-| Tool | Risk | Purpose |
-|---|---|---|
-| `data_studio__list_connections` | 🟢 Safe | List available connections (id, name, type) — no credentials |
-| `data_studio__get_status` | 🟢 Safe | Backend availability, tool counts, permission state |
-
-### SQL via sqlkit (11 tools)
-
-| Tool | Risk | Purpose |
-|---|---|---|
-| `data_studio__sqlkit__list_connections` | 🟢 Safe | List sqlkit connections |
-| `data_studio__sqlkit__execute_query` | 🟢 Safe | Execute a read-only SELECT query |
-| `data_studio__sqlkit__list_databases` | 🟢 Safe | List databases |
-| `data_studio__sqlkit__list_schemas` | 🟢 Safe | List schemas in a database |
-| `data_studio__sqlkit__list_tables` | 🟢 Safe | List tables in a schema |
-| `data_studio__sqlkit__get_schema` | 🟢 Safe | Get full schema for a database |
-| `data_studio__sqlkit__describe_table` | 🟢 Safe | Describe a table's columns |
-| `data_studio__sqlkit__explain_query` | 🟢 Safe | Explain a query's execution plan |
-| `data_studio__sqlkit__execute_write` | 🟡 Elevated | INSERT / UPDATE / CREATE (no DELETE, no DDL) |
-| `data_studio__sqlkit__execute_delete` | 🔴 Destructive | DELETE / DROP / TRUNCATE statements |
-| `data_studio__sqlkit__execute_ddl` | 🔴 Destructive | DDL statements (ALTER, DROP TABLE, etc.) |
-
-### NoSQL via dockit — Elasticsearch (16 tools)
-
-| Tool | Risk | Purpose |
-|---|---|---|
-| `data_studio__es__search` | 🟢 Safe | Search using Query DSL |
-| `data_studio__es__get_document` | 🟢 Safe | Get a document by ID |
-| `data_studio__es__cat_indices` | 🟢 Safe | List indices |
-| `data_studio__es__get_mapping` | 🟢 Safe | Get index mapping |
-| `data_studio__es__cat_aliases` | 🟢 Safe | List aliases |
-| `data_studio__es__get_alias` | 🟢 Safe | Get an alias |
-| `data_studio__es__index_document` | 🟡 Elevated | Create or replace a document |
-| `data_studio__es__update_document` | 🟡 Elevated | Partial update of a document |
-| `data_studio__es__create_index` | 🟡 Elevated | Create an index |
-| `data_studio__es__put_mapping` | 🟡 Elevated | Update index mapping |
-| `data_studio__es__put_alias` | 🟡 Elevated | Create an alias |
-| `data_studio__es__update_aliases` | 🟡 Elevated | Bulk alias operations |
-| `data_studio__es__delete_document` | 🔴 Destructive | Delete a document |
-| `data_studio__es__delete_by_query` | 🔴 Destructive | Delete documents matching a query |
-| `data_studio__es__delete_index` | 🔴 Destructive | Delete an index |
-| `data_studio__es__delete_alias` | 🔴 Destructive | Delete an alias |
-
-### NoSQL via dockit — MongoDB (26 tools)
-
-| Tool | Risk | Purpose |
-|---|---|---|
-| `data_studio__mongo__list_databases` | 🟢 Safe | List databases |
-| `data_studio__mongo__list_collections` | 🟢 Safe | List collections |
-| `data_studio__mongo__find` | 🟢 Safe | Find documents |
-| `data_studio__mongo__collection_stats` | 🟢 Safe | Collection statistics |
-| `data_studio__mongo__database_stats` | 🟢 Safe | Database statistics |
-| `data_studio__mongo__server_status` | 🟢 Safe | Server status |
-| `data_studio__mongo__repl_set_status` | 🟢 Safe | Replica set status |
-| `data_studio__mongo__shard_status` | 🟢 Safe | Shard status |
-| `data_studio__mongo__count_documents` | 🟢 Safe | Count documents |
-| `data_studio__mongo__list_indexes` | 🟢 Safe | List indexes |
-| `data_studio__mongo__sample_documents` | 🟢 Safe | Sample documents |
-| `data_studio__mongo__aggregate` | 🟡 Elevated | Aggregation pipeline |
-| `data_studio__mongo__insert_one` | 🟡 Elevated | Insert one document |
-| `data_studio__mongo__update_many` | 🟡 Elevated | Update many documents |
-| `data_studio__mongo__update_document` | 🟡 Elevated | Update one document |
-| `data_studio__mongo__create_database` | 🟡 Elevated | Create a database |
-| `data_studio__mongo__create_collection` | 🟡 Elevated | Create a collection |
-| `data_studio__mongo__rename_collection` | 🟡 Elevated | Rename a collection |
-| `data_studio__mongo__clone_collection` | 🟡 Elevated | Clone a collection |
-| `data_studio__mongo__create_index` | 🟡 Elevated | Create an index |
-| `data_studio__mongo__drop_index` | 🟡 Elevated | Drop an index |
-| `data_studio__mongo__delete_many` | 🔴 Destructive | Delete many documents |
-| `data_studio__mongo__delete_document` | 🔴 Destructive | Delete one document |
-| `data_studio__mongo__drop_collection` | 🔴 Destructive | Drop a collection |
-| `data_studio__mongo__drop_database` | 🔴 Destructive | Drop a database |
-| `data_studio__mongo__truncate_collection` | 🔴 Destructive | Truncate a collection |
-
-### NoSQL via dockit — DynamoDB (24 tools)
-
-| Tool | Risk | Purpose |
-|---|---|---|
-| `data_studio__dynamo__execute_query` | 🟢 Safe | Execute a read query |
-| `data_studio__dynamo__describe_table` | 🟢 Safe | Describe a table |
-| `data_studio__dynamo__list_tables` | 🟢 Safe | List tables |
-| `data_studio__dynamo__query_table` | 🟢 Safe | Query a table |
-| `data_studio__dynamo__scan_table` | 🟢 Safe | Scan a table |
-| `data_studio__dynamo__describe_continuous_backups` | 🟢 Safe | Describe backups |
-| `data_studio__dynamo__describe_ttl` | 🟢 Safe | Describe TTL |
-| `data_studio__dynamo__get_table_metrics` | 🟢 Safe | Table metrics |
-| `data_studio__dynamo__execute_write` | 🟡 Elevated | Execute a write |
-| `data_studio__dynamo__create_item` | 🟡 Elevated | Create an item |
-| `data_studio__dynamo__batch_write_items` | 🟡 Elevated | Batch write items |
-| `data_studio__dynamo__update_item` | 🟡 Elevated | Update an item |
-| `data_studio__dynamo__create_gsi` | 🟡 Elevated | Create a GSI |
-| `data_studio__dynamo__update_gsi` | 🟡 Elevated | Update a GSI |
-| `data_studio__dynamo__create_table` | 🟡 Elevated | Create a table |
-| `data_studio__dynamo__update_table_config` | 🟡 Elevated | Update table config |
-| `data_studio__dynamo__update_ttl` | 🟡 Elevated | Update TTL |
-| `data_studio__dynamo__update_pitr` | 🟡 Elevated | Update PITR |
-| `data_studio__dynamo__update_streams` | 🟡 Elevated | Update streams |
-| `data_studio__dynamo__execute_delete` | 🔴 Destructive | Execute a delete |
-| `data_studio__dynamo__delete_item` | 🔴 Destructive | Delete an item |
-| `data_studio__dynamo__delete_gsi` | 🔴 Destructive | Delete a GSI |
-| `data_studio__dynamo__delete_table` | 🔴 Destructive | Delete a table |
-| `data_studio__dynamo__truncate_table` | 🔴 Destructive | Truncate a table |
-
-> **Total: 79 tools** (2 server + 11 SQL + 16 Elasticsearch + 26 MongoDB + 24 DynamoDB). Destructive tools (🔴) only appear when the bridge permission mode is **Full Access** with **Confirm Destructive** enabled — otherwise they are hidden from `tools/list` entirely.
-
+**79 tools total.** Read-only operations run automatically under **Read Only** mode. Elevated operations (writes, index/schema changes) require **Data Read-Write**. Destructive operations (DELETE, DROP, TRUNCATE) require **Full Access** and always surface an explicit **user confirmation** prompt.
 ## How it works
 
 ```
