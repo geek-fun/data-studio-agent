@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8a34e"/>
+      <stop offset="1" stop-color="#f0812e"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+  <!-- database cylinder -->
+  <ellipse cx="32" cy="20" rx="14" ry="6" fill="#ffffff" opacity="0.95"/>
+  <path d="M18 20 v14 c0 3.3 6.3 6 14 6 s14 -2.7 14 -6 V20" fill="#ffffff" opacity="0.9"/>
+  <path d="M18 27 c0 3.3 6.3 6 14 6 s14 -2.7 14 -6" fill="none" stroke="#f0812e" stroke-width="1.6" opacity="0.55"/>
+  <!-- agent spark -->
+  <circle cx="32" cy="40" r="5.5" fill="#0f0f11"/>
+  <path d="M32 37.5 l1 2.2 2.2 1 -2.2 1 -1 2.2 -1 -2.2 -2.2 -1 2.2 -1 z" fill="#f89b40"/>
+</svg>
