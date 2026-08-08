@@ -1,22 +1,25 @@
 <div align="center">
 
+<img src="https://raw.githubusercontent.com/geek-fun/data-studio-agent/master/docs/images/data-studio-agent.svg" width="96" height="96" alt="Data Studio Agent logo" />
+
 # @geek-fun/data-studio-mcp
 
 **把你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）变成数据库助手 —— 用自然语言查询、探索和理解你的数据库。**
 
-**本地优先。数据永不离开你的电脑。开源开放。**
+**本地优先。企业级安全。开源开放。**
 
 [![npm version](https://img.shields.io/npm/v/@geek-fun/data-studio-mcp?color=orange&logo=npm)](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)
 [![Downloads](https://img.shields.io/npm/dt/@geek-fun/data-studio-mcp?color=orange&logo=npm)](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg&logo=apache)](https://github.com/geek-fun/data-studio-agent/blob/master/LICENSE)
 
 <p>
-  <img src="https://img.shields.io/badge/SQL-PostgreSQL%20%7C%20MySQL%20%7C%20SQL%20Server%20%7C%20SQLite-336791"/>
+  <img src="https://img.shields.io/badge/SQL-70%2B%20databases%20via%20SqlKit-336791"/>
   <img src="https://img.shields.io/badge/NoSQL-Elasticsearch%20%7C%20OpenSearch%20%7C%20MongoDB%20%7C%20DynamoDB-47A248"/>
+  <img src="https://img.shields.io/badge/MCP-000000&logo=modelcontextprotocol&logoColor=white"/>
   <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white"/>
 </p>
 
-[npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
+[📖 产品页](https://www.geekfun.club/zh/products/data-studio-agent/) · [npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
 
 [English](README.md) · 简体中文
 
@@ -93,11 +96,16 @@ npx -y @geek-fun/data-studio-mcp
 
 AI 助手可以查看表结构、运行查询、探索你的数据 — 并且它会展示执行的每一条查询。
 
-## 安全性
+## 企业级安全
 
-- Bridge 仅绑定 `127.0.0.1` — 其他机器无法访问
-- **破坏性操作和写入操作会被 Bridge 拒绝** — 通过 MCP 服务器只能使用只读能力
-- 凭证永远不会暴露给 AI 助手；所有连接都在桌面应用内部解析
+为安全优先的团队而设计。LLM 是"有权限但受控"的执行者：它可以对你的数据做很多事，但永远无法获得你的凭据。
+
+- **凭据永不离开应用** —— LLM 只能看到一个不透明的 `connection_id`；真实凭据在 dockit/sqlkit 内部解析，绝不跨越 MCP 边界。你的密码和密钥始终留在本机、留在应用里。
+- **基于 ID 的资源访问** —— 代理严格通过连接 ID 访问数据库，绝不在提示词或工具参数中嵌入凭据。模型没有任何途径获取或泄露连接密钥。
+- **三级权限模型** —— 只读 / 数据读写 / 完全访问三种模式按风险等级管控每个能力。外加连接级覆盖：可将任意连接标记为只读，或按操作白名单放行。
+- **显式用户确认** —— 破坏性操作（DELETE、DROP、TRUNCATE）在策略中标记为 `Ask` —— 客户端在执行任何破坏性操作前都会弹出显式确认。不会有静默执行的破坏操作。
+- **操作级语句分类** —— SQL 在执行前按语句类型解析分类（读 / 写 / 删除 / DDL）。只写工具拒绝 DELETE 语句；删除工具拒绝 DDL —— 杜绝意外的权限升级。
+- **仅本地桥接** —— 桥接只绑定 `127.0.0.1` —— 其他机器无法访问。一个薄路由层，无需托管服务器、无需管理 API key、不向网络暴露任何东西。
 
 ## 工作原理
 

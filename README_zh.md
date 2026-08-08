@@ -1,10 +1,12 @@
 <div align="center">
 
-# data-studio-agent
+<img src="docs/images/data-studio-agent.svg" width="96" height="96" alt="Data Studio Agent logo" />
+
+# Data Studio Agent
 
 **把你的 AI 编程助手变成数据库助手 —— 用自然语言查询、探索和理解你的数据库。**
 
-**本地优先。数据永不离开你的电脑。开源开放。**
+**本地优先。企业级安全。开源开放。**
 
 [![Release](https://img.shields.io/github/v/release/geek-fun/data-studio-agent?color=orange&label=release&logo=github)](https://github.com/geek-fun/data-studio-agent/releases)
 [![Downloads](https://img.shields.io/github/downloads/geek-fun/data-studio-agent/total?color=orange&logo=docusign)](https://github.com/geek-fun/data-studio-agent/releases)
@@ -14,12 +16,13 @@
 [![CI](https://github.com/geek-fun/data-studio-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/geek-fun/data-studio-agent/actions/workflows/ci.yml)
 
 <p>
-  <img src="https://img.shields.io/badge/SQL-PostgreSQL%20%7C%20MySQL%20%7C%20SQL%20Server%20%7C%20SQLite-336791"/>
+  <img src="https://img.shields.io/badge/SQL-70%2B%20databases%20via%20SqlKit-336791"/>
   <img src="https://img.shields.io/badge/NoSQL-Elasticsearch%20%7C%20OpenSearch%20%7C%20MongoDB%20%7C%20DynamoDB-47A248"/>
   <img src="https://img.shields.io/badge/MCP-000000&logo=modelcontextprotocol&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Claude%20Code%20%7C%20Cursor%20%7C%20OpenCode%20%7C%20Codex%20%7C%20Cline-7C3AED"/>
 </p>
 
-[npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
+[📖 产品页](https://www.geekfun.club/zh/products/data-studio-agent/) · [npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
 
 [English](README.md) · 简体中文
 
@@ -27,10 +30,18 @@
 
 ---
 
-本仓库是 **Data Studio MCP Server** 的家园 —— 一个统一的 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器，通过 [dockit](https://github.com/geek-fun/dockit) 和 [sqlkit](https://github.com/geek-fun/sqlkit) 桌面应用，让 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）直接访问你的数据库。
+本仓库是 **Data Studio MCP Server** 的家园 —— 一个统一的 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器，通过 [dockit](https://github.com/geek-fun/dockit) 和 [sqlkit](https://github.com/geek-fun/sqlkit) 桌面应用，让 AI 编程助手直接访问你的数据库。
 
-- **SQL**（通过 sqlkit）：PostgreSQL、MySQL、SQL Server、SQLite
+- **SQL**（通过 sqlkit）：**70+ 种数据库** —— PostgreSQL、MySQL、SQL Server、Oracle、SQLite、DuckDB、ClickHouse、Snowflake、BigQuery 等
 - **NoSQL**（通过 dockit）：Elasticsearch、OpenSearch、MongoDB、DynamoDB
+
+## 特性
+
+- **任意 AI 编程助手** —— Claude Code、Cursor、Windsurf、OpenCode、Codex、Cline、Pi、Qoder、GitHub Copilot 及任何 MCP 客户端
+- **任意操作系统** —— macOS、Windows、Linux
+- **任意 LLM 模型** —— 自带 Provider，无锁定
+- **一个 MCP 服务器、一份配置** —— 在本机同时路由到 SqlKit（SQL）和 DocKit（NoSQL）的桥接
+- **企业级安全** —— 详见下文
 
 ## 快速开始
 
@@ -44,7 +55,7 @@
 npm install -g @geek-fun/data-studio-mcp
 ```
 
-或不安装直接运行：
+或不安装直接运行（npx 首次运行自动下载）：
 
 ```bash
 npx -y @geek-fun/data-studio-mcp
@@ -52,7 +63,19 @@ npx -y @geek-fun/data-studio-mcp
 
 ### 3. 添加到你的 AI 工具
 
-**Claude Code** — 在 MCP 配置中添加：
+**OpenAI Codex** — 一条命令：
+
+```bash
+codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+**Claude Code** — 一条命令：
+
+```bash
+claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+**Cursor** — 创建 `.cursor/mcp.json`（项目）或 `~/.cursor/mcp.json`（全局）：
 
 ```json
 {
@@ -65,15 +88,47 @@ npx -y @geek-fun/data-studio-mcp
 }
 ```
 
-**Cursor / Windsurf / OpenCode / 其他 MCP 客户端** — 注册一个 stdio 服务器：
+**Windsurf** — 创建 `~/.codeium/windsurf/mcp_config.json`（仅全局）：
 
-| 设置 | 值 |
+```json
+{
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"]
+    }
+  }
+}
+```
+
+**OpenCode** — 添加到 `opencode.json`（项目）或 `~/.config/opencode/opencode.json`（全局）：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "data-studio": {
+      "type": "local",
+      "command": ["npx", "-y", "@geek-fun/data-studio-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**任何其他 MCP 客户端** — 注册一个 stdio 服务器，命令 `npx`，参数 `-y @geek-fun/data-studio-mcp`。
+
+### 4. 调整权限（可选）
+
+在 dockit/sqlkit 中打开 **设置 → MCP Bridge**，控制代理能做什么：
+
+| 权限模式 | 代理能做什么 |
 |---|---|
-| 类型 (Type) | stdio |
-| 命令 (Command) | `npx` |
-| 参数 (Args) | `-y @geek-fun/data-studio-mcp` |
+| **只读**（默认） | 浏览 schema、运行 SELECT 查询。不可写。 |
+| **数据读写** | INSERT、UPDATE、索引操作。不可删除/删表。 |
+| **完全访问** | 一切操作，包括 DELETE、DROP、TRUNCATE。 |
 
-### 4. 开始提问
+### 5. 开始提问
 
 直接用自然语言即可 —— AI 助手会替你查询数据库：
 
@@ -83,6 +138,17 @@ npx -y @geek-fun/data-studio-mcp
 - "执行这条查询并解释结果"
 
 AI 助手可以查看表结构、运行查询、探索你的数据 — 并且它会展示执行的每一条查询。
+
+## 企业级安全
+
+为安全优先的团队而设计。LLM 是"有权限但受控"的执行者：它可以对你的数据做很多事，但永远无法获得你的凭据。
+
+- **凭据永不离开应用** —— LLM 只能看到一个不透明的 `connection_id`；真实凭据在 dockit/sqlkit 内部解析，绝不跨越 MCP 边界。你的密码和密钥始终留在本机、留在应用里。
+- **基于 ID 的资源访问** —— 代理严格通过连接 ID 访问数据库，绝不在提示词或工具参数中嵌入凭据。模型没有任何途径获取或泄露连接密钥。
+- **三级权限模型** —— 只读 / 数据读写 / 完全访问三种模式按风险等级管控每个能力。外加连接级覆盖：可将任意连接标记为只读，或按操作白名单放行。
+- **显式用户确认** —— 破坏性操作（DELETE、DROP、TRUNCATE）在策略中标记为 `Ask` —— 客户端在执行任何破坏性操作前都会弹出显式确认。不会有静默执行的破坏操作。
+- **操作级语句分类** —— SQL 在执行前按语句类型解析分类（读 / 写 / 删除 / DDL）。只写工具拒绝 DELETE 语句；删除工具拒绝 DDL —— 杜绝意外的权限升级。
+- **仅本地桥接** —— 桥接只绑定 `127.0.0.1` —— 其他机器无法访问。一个薄路由层，无需托管服务器、无需管理 API key、不向网络暴露任何东西。
 
 ## 工具命名
 
@@ -94,12 +160,6 @@ AI 助手可以查看表结构、运行查询、探索你的数据 — 并且它
 | `data_studio__es_*` | dockit | `data_studio__es_search`、`data_studio__es_list_indices` |
 | `data_studio__mongo_*` | dockit | `data_studio__mongo_find`、`data_studio__mongo_insert` |
 | `data_studio__dynamo_*` | dockit | `data_studio__dynamo_query`、`data_studio__dynamo_list_tables` |
-
-## 安全性
-
-- Bridge 仅绑定 `127.0.0.1` — 其他机器无法访问
-- **破坏性操作和写入操作会被 Bridge 拒绝** — 通过 MCP 服务器只能使用只读能力
-- 凭证永远不会暴露给 AI 助手；所有连接都在桌面应用内部解析
 
 ## 工作原理
 
@@ -124,7 +184,6 @@ OpenSearch       SQLite               |
 ```
 
 MCP 服务器是一个轻量的路由层。所有数据库驱动、SSH 隧道和连接管理都在桌面应用中，由应用暴露一个本机 HTTP Bridge（仅 `127.0.0.1`）。MCP 服务器通过各应用的端口文件自动发现正在运行的后端。
-
 
 ---
 
