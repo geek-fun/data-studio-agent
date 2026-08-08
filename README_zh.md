@@ -4,7 +4,7 @@
 
 # Data Studio Agent
 
-**把你的 AI 编程助手变成数据库助手 —— 用自然语言查询、探索和理解你的数据库。**
+**让你的 AI 编程智能体安全访问所有数据库 —— 用自然语言查询、探索和理解你的数据。**
 
 **本地优先。企业级安全。开源开放。**
 
@@ -152,14 +152,113 @@ AI 助手可以查看表结构、运行查询、探索你的数据 — 并且它
 
 ## 工具命名
 
-所有工具遵循 `data_studio__{backend}__{action}` 命名规则：
+所有工具遵循 `data_studio__{backend}__{action}` 命名规则 —— MCP 服务器会给每个桥接工具加上 `data_studio__` 前缀。风险级别（🟢 安全 / 🟡 提升 / 🔴 破坏性）通过权限模型控制暴露：只读模式开放安全工具；数据读写模式需要提升权限；完全访问 + 显式确认才开放破坏性工具。
 
-| 前缀 | 后端 | 示例 |
+### MCP 服务器工具（始终可用）
+
+| 工具 | 风险 | 用途 |
 |---|---|---|
-| `data_studio__sql_*` | sqlkit | `data_studio__sql_execute`、`data_studio__sql_list_tables` |
-| `data_studio__es_*` | dockit | `data_studio__es_search`、`data_studio__es_list_indices` |
-| `data_studio__mongo_*` | dockit | `data_studio__mongo_find`、`data_studio__mongo_insert` |
-| `data_studio__dynamo_*` | dockit | `data_studio__dynamo_query`、`data_studio__dynamo_list_tables` |
+| `data_studio__list_connections` | 🟢 安全 | 列出可用连接（id、name、type）—— 不含凭据 |
+| `data_studio__get_status` | 🟢 安全 | 后端可用性、工具数量、权限状态 |
+
+### 通过 sqlkit 的 SQL（11 个工具）
+
+| 工具 | 风险 | 用途 |
+|---|---|---|
+| `data_studio__sqlkit__list_connections` | 🟢 安全 | 列出 sqlkit 连接 |
+| `data_studio__sqlkit__execute_query` | 🟢 安全 | 执行只读 SELECT 查询 |
+| `data_studio__sqlkit__list_databases` | 🟢 安全 | 列出数据库 |
+| `data_studio__sqlkit__list_schemas` | 🟢 安全 | 列出数据库中的 schema |
+| `data_studio__sqlkit__list_tables` | 🟢 安全 | 列出 schema 中的表 |
+| `data_studio__sqlkit__get_schema` | 🟢 安全 | 获取数据库完整 schema |
+| `data_studio__sqlkit__describe_table` | 🟢 安全 | 描述表的列 |
+| `data_studio__sqlkit__explain_query` | 🟢 安全 | 解释查询执行计划 |
+| `data_studio__sqlkit__execute_write` | 🟡 提升 | INSERT / UPDATE / CREATE（不含 DELETE、DDL） |
+| `data_studio__sqlkit__execute_delete` | 🔴 破坏性 | DELETE / DROP / TRUNCATE 语句 |
+| `data_studio__sqlkit__execute_ddl` | 🔴 破坏性 | DDL 语句（ALTER、DROP TABLE 等） |
+
+### 通过 dockit 的 NoSQL —— Elasticsearch（16 个工具）
+
+| 工具 | 风险 | 用途 |
+|---|---|---|
+| `data_studio__es__search` | 🟢 安全 | 使用 Query DSL 搜索 |
+| `data_studio__es__get_document` | 🟢 安全 | 按 ID 获取文档 |
+| `data_studio__es__cat_indices` | 🟢 安全 | 列出索引 |
+| `data_studio__es__get_mapping` | 🟢 安全 | 获取索引映射 |
+| `data_studio__es__cat_aliases` | 🟢 安全 | 列出别名 |
+| `data_studio__es__get_alias` | 🟢 安全 | 获取别名 |
+| `data_studio__es__index_document` | 🟡 提升 | 创建或替换文档 |
+| `data_studio__es__update_document` | 🟡 提升 | 局部更新文档 |
+| `data_studio__es__create_index` | 🟡 提升 | 创建索引 |
+| `data_studio__es__put_mapping` | 🟡 提升 | 更新索引映射 |
+| `data_studio__es__put_alias` | 🟡 提升 | 创建别名 |
+| `data_studio__es__update_aliases` | 🟡 提升 | 批量别名操作 |
+| `data_studio__es__delete_document` | 🔴 破坏性 | 删除文档 |
+| `data_studio__es__delete_by_query` | 🔴 破坏性 | 按查询删除文档 |
+| `data_studio__es__delete_index` | 🔴 破坏性 | 删除索引 |
+| `data_studio__es__delete_alias` | 🔴 破坏性 | 删除别名 |
+
+### 通过 dockit 的 NoSQL —— MongoDB（26 个工具）
+
+| 工具 | 风险 | 用途 |
+|---|---|---|
+| `data_studio__mongo__list_databases` | 🟢 安全 | 列出数据库 |
+| `data_studio__mongo__list_collections` | 🟢 安全 | 列出集合 |
+| `data_studio__mongo__find` | 🟢 安全 | 查询文档 |
+| `data_studio__mongo__collection_stats` | 🟢 安全 | 集合统计 |
+| `data_studio__mongo__database_stats` | 🟢 安全 | 数据库统计 |
+| `data_studio__mongo__server_status` | 🟢 安全 | 服务器状态 |
+| `data_studio__mongo__repl_set_status` | 🟢 安全 | 副本集状态 |
+| `data_studio__mongo__shard_status` | 🟢 安全 | 分片状态 |
+| `data_studio__mongo__count_documents` | 🟢 安全 | 统计文档数 |
+| `data_studio__mongo__list_indexes` | 🟢 安全 | 列出索引 |
+| `data_studio__mongo__sample_documents` | 🟢 安全 | 采样文档 |
+| `data_studio__mongo__aggregate` | 🟡 提升 | 聚合管道 |
+| `data_studio__mongo__insert_one` | 🟡 提升 | 插入单条文档 |
+| `data_studio__mongo__update_many` | 🟡 提升 | 更新多条文档 |
+| `data_studio__mongo__update_document` | 🟡 提升 | 更新单条文档 |
+| `data_studio__mongo__create_database` | 🟡 提升 | 创建数据库 |
+| `data_studio__mongo__create_collection` | 🟡 提升 | 创建集合 |
+| `data_studio__mongo__rename_collection` | 🟡 提升 | 重命名集合 |
+| `data_studio__mongo__clone_collection` | 🟡 提升 | 克隆集合 |
+| `data_studio__mongo__create_index` | 🟡 提升 | 创建索引 |
+| `data_studio__mongo__drop_index` | 🟡 提升 | 删除索引 |
+| `data_studio__mongo__delete_many` | 🔴 破坏性 | 删除多条文档 |
+| `data_studio__mongo__delete_document` | 🔴 破坏性 | 删除单条文档 |
+| `data_studio__mongo__drop_collection` | 🔴 破坏性 | 删除集合 |
+| `data_studio__mongo__drop_database` | 🔴 破坏性 | 删除数据库 |
+| `data_studio__mongo__truncate_collection` | 🔴 破坏性 | 清空集合 |
+
+### 通过 dockit 的 NoSQL —— DynamoDB（24 个工具）
+
+| 工具 | 风险 | 用途 |
+|---|---|---|
+| `data_studio__dynamo__execute_query` | 🟢 安全 | 执行只读查询 |
+| `data_studio__dynamo__describe_table` | 🟢 安全 | 描述表 |
+| `data_studio__dynamo__list_tables` | 🟢 安全 | 列出表 |
+| `data_studio__dynamo__query_table` | 🟢 安全 | 查询表 |
+| `data_studio__dynamo__scan_table` | 🟢 安全 | 扫描表 |
+| `data_studio__dynamo__describe_continuous_backups` | 🟢 安全 | 描述备份 |
+| `data_studio__dynamo__describe_ttl` | 🟢 安全 | 描述 TTL |
+| `data_studio__dynamo__get_table_metrics` | 🟢 安全 | 表指标 |
+| `data_studio__dynamo__execute_write` | 🟡 提升 | 执行写入 |
+| `data_studio__dynamo__create_item` | 🟡 提升 | 创建条目 |
+| `data_studio__dynamo__batch_write_items` | 🟡 提升 | 批量写入条目 |
+| `data_studio__dynamo__update_item` | 🟡 提升 | 更新条目 |
+| `data_studio__dynamo__create_gsi` | 🟡 提升 | 创建 GSI |
+| `data_studio__dynamo__update_gsi` | 🟡 提升 | 更新 GSI |
+| `data_studio__dynamo__create_table` | 🟡 提升 | 创建表 |
+| `data_studio__dynamo__update_table_config` | 🟡 提升 | 更新表配置 |
+| `data_studio__dynamo__update_ttl` | 🟡 提升 | 更新 TTL |
+| `data_studio__dynamo__update_pitr` | 🟡 提升 | 更新 PITR |
+| `data_studio__dynamo__update_streams` | 🟡 提升 | 更新流 |
+| `data_studio__dynamo__execute_delete` | 🔴 破坏性 | 执行删除 |
+| `data_studio__dynamo__delete_item` | 🔴 破坏性 | 删除条目 |
+| `data_studio__dynamo__delete_gsi` | 🔴 破坏性 | 删除 GSI |
+| `data_studio__dynamo__delete_table` | 🔴 破坏性 | 删除表 |
+| `data_studio__dynamo__truncate_table` | 🔴 破坏性 | 清空表 |
+
+> **共 79 个工具**（2 个服务器工具 + 11 个 SQL + 16 个 Elasticsearch + 26 个 MongoDB + 24 个 DynamoDB）。破坏性工具（🔴）仅在桥接权限模式为**完全访问**且开启**确认破坏性操作**时才会出现在 `tools/list` 中 —— 否则完全隐藏。
 
 ## 工作原理
 
