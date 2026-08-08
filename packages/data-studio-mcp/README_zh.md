@@ -27,7 +27,7 @@
 
 ---
 
-让你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）变成数据库助手。直接用自然语言提问，让它查询数据、查看表结构、编写 SQL 或 NoSQL 查询 — 支持：
+让你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）安全访问所有数据库。直接用自然语言提问，让它查询数据、查看表结构、编写 SQL 或 NoSQL 查询 — 支持：
 
 - **SQL 数据库**（通过 [sqlkit](https://github.com/geek-fun/sqlkit)）：PostgreSQL、MySQL、SQL Server、SQLite
 - **NoSQL 数据库**（通过 [dockit](https://github.com/geek-fun/dockit)）：Elasticsearch、OpenSearch、MongoDB、DynamoDB
