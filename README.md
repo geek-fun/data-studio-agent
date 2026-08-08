@@ -1,10 +1,12 @@
 <div align="center">
 
-# data-studio-agent
+<img src="docs/images/data-studio-agent.svg" width="96" height="96" alt="Data Studio Agent logo" />
+
+# Data Studio Agent
 
 **Turn your AI coding agent into a database assistant — query, explore, and understand your databases in plain language.**
 
-**Local-first. Your data never leaves your machine. Open source.**
+**Local-first. Enterprise-grade security. Open source.**
 
 [![Release](https://img.shields.io/github/v/release/geek-fun/data-studio-agent?color=orange&label=release&logo=github)](https://github.com/geek-fun/data-studio-agent/releases)
 [![Downloads](https://img.shields.io/github/downloads/geek-fun/data-studio-agent/total?color=orange&logo=docusign)](https://github.com/geek-fun/data-studio-agent/releases)
@@ -14,12 +16,13 @@
 [![CI](https://github.com/geek-fun/data-studio-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/geek-fun/data-studio-agent/actions/workflows/ci.yml)
 
 <p>
-  <img src="https://img.shields.io/badge/SQL-PostgreSQL%20%7C%20MySQL%20%7C%20SQL%20Server%20%7C%20SQLite-336791"/>
+  <img src="https://img.shields.io/badge/SQL-70%2B%20databases%20via%20SqlKit-336791"/>
   <img src="https://img.shields.io/badge/NoSQL-Elasticsearch%20%7C%20OpenSearch%20%7C%20MongoDB%20%7C%20DynamoDB-47A248"/>
   <img src="https://img.shields.io/badge/MCP-000000&logo=modelcontextprotocol&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Claude%20Code%20%7C%20Cursor%20%7C%20OpenCode%20%7C%20Codex%20%7C%20Cline-7C3AED"/>
 </p>
 
-[npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
+[📖 Product Page](https://www.geekfun.club/products/data-studio-agent/) · [npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
 
 English · [简体中文](README_zh.md)
 
@@ -27,10 +30,18 @@ English · [简体中文](README_zh.md)
 
 ---
 
-This repository is home to the **Data Studio MCP Server** — a unified [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI coding agents (Claude Code, Cursor, Windsurf, OpenCode, Codex) direct access to your databases through the [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit) desktop apps.
+This repository is home to the **Data Studio MCP Server** — a unified [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI coding agents direct access to your databases through the [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit) desktop apps.
 
-- **SQL** (via sqlkit): PostgreSQL, MySQL, SQL Server, SQLite
+- **SQL** (via sqlkit): **70+ databases** — PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more
 - **NoSQL** (via dockit): Elasticsearch, OpenSearch, MongoDB, DynamoDB
+
+## Features
+
+- **Any AI coding agent** — Claude Code, Cursor, Windsurf, OpenCode, Codex, Cline, Pi, Qoder, GitHub Copilot, and any MCP client
+- **Any OS** — macOS, Windows, Linux
+- **Any LLM model** — bring your own provider, no lock-in
+- **One MCP server, one config** — routes to both SqlKit (SQL) and DocKit (NoSQL) bridges over localhost
+- **Enterprise-grade security** — see below
 
 ## Quick start
 
@@ -44,7 +55,7 @@ Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](
 npm install -g @geek-fun/data-studio-mcp
 ```
 
-Or run without installing:
+Or run without installing (npx downloads on first run):
 
 ```bash
 npx -y @geek-fun/data-studio-mcp
@@ -52,7 +63,19 @@ npx -y @geek-fun/data-studio-mcp
 
 ### 3. Add it to your AI tool
 
-**Claude Code** — add to your MCP config:
+**OpenAI Codex** — one command:
+
+```bash
+codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+**Claude Code** — one command:
+
+```bash
+claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+**Cursor** — create `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
 
 ```json
 {
@@ -65,15 +88,47 @@ npx -y @geek-fun/data-studio-mcp
 }
 ```
 
-**Cursor / Windsurf / OpenCode / other MCP clients** — register a stdio server:
+**Windsurf** — create `~/.codeium/windsurf/mcp_config.json` (global only):
 
-| Setting | Value |
+```json
+{
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"]
+    }
+  }
+}
+```
+
+**OpenCode** — add to `opencode.json` (project) or `~/.config/opencode/opencode.json` (global):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "data-studio": {
+      "type": "local",
+      "command": ["npx", "-y", "@geek-fun/data-studio-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Any other MCP client** — register a stdio server with command `npx` and args `-y @geek-fun/data-studio-mcp`.
+
+### 4. Tune permissions (optional)
+
+Open **Settings → MCP Bridge** in dockit/sqlkit to control what the agent can do:
+
+| Permission mode | What the agent can do |
 |---|---|
-| Type | stdio |
-| Command | `npx` |
-| Args | `-y @geek-fun/data-studio-mcp` |
+| **Read Only** (default) | Explore schemas, run SELECT queries. No writes. |
+| **Data Read/Write** | INSERT, UPDATE, index operations. No deletes/drops. |
+| **Full Access** | Everything, including DELETE, DROP, TRUNCATE. |
 
-### 4. Start asking
+### 5. Start asking
 
 Just use plain language — the agent queries your databases for you:
 
@@ -83,6 +138,17 @@ Just use plain language — the agent queries your databases for you:
 - "Run this query and explain the results"
 
 The agent reads schemas, runs queries, and explores your data — and shows you every query it executes.
+
+## Enterprise-grade security
+
+Designed for security-first teams. The LLM is a privileged-but-contained actor: it can do a lot with your data, but it can never obtain your credentials.
+
+- **Credentials never leave the apps** — the LLM only ever sees an opaque `connection_id`; real credentials are resolved inside dockit/sqlkit and never cross the MCP boundary. Your passwords and keys stay on your machine, in your app.
+- **ID-based resource access** — agents access databases strictly by connection ID, never by embedding credentials in prompts or tool arguments. There is no path for the model to obtain or exfiltrate connection secrets.
+- **Three-tier permission model** — Read Only / Data Read-Write / Full Access modes gate every capability by risk level. Plus per-connection overrides: mark any connection read-only, or allowlist specific actions.
+- **Explicit user confirmation** — destructive operations (DELETE, DROP, TRUNCATE) surface as `Ask` in the policy — the client prompts the user for explicit confirmation before anything destructive executes. Nothing destructive runs silently.
+- **Action-level statement classification** — SQL is parsed and classified by statement kind (Read / Write / Delete / DDL) before execution. Write-only tools reject DELETE statements; delete tools reject DDL — no accidental escalation.
+- **Local-only bridge** — the bridge binds to `127.0.0.1` exclusively — unreachable from other machines. A thin routing layer with no server to host, no API keys to manage, nothing exposed to the network.
 
 ## Tool naming
 
@@ -94,12 +160,6 @@ All tools follow the `data_studio__{backend}__{action}` convention:
 | `data_studio__es_*` | dockit | `data_studio__es_search`, `data_studio__es_list_indices` |
 | `data_studio__mongo_*` | dockit | `data_studio__mongo_find`, `data_studio__mongo_insert` |
 | `data_studio__dynamo_*` | dockit | `data_studio__dynamo_query`, `data_studio__dynamo_list_tables` |
-
-## Safety
-
-- The bridge binds to `127.0.0.1` only — unreachable from other machines
-- **Destructive and elevated operations are rejected by the bridge** — only read-safe capabilities are exposed through the MCP server
-- Credentials are never exposed to the agent; all connections are resolved inside the desktop apps
 
 ## How it works
 
