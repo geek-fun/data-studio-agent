@@ -93,6 +93,9 @@ flamegraph.svg
 perf.data
 perf.data.old
 
+# Repository branding assets (keep these tracked)
+!docs/images/*.svg
+
 # macOS crash reports
 *.crash
 
