@@ -4,7 +4,7 @@
 
 # @geek-fun/data-studio-mcp
 
-**Turn your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) into a database assistant — query, explore, and understand your databases in plain language.**
+**Let your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) securely access all your databases — query, explore, and understand your data in plain language.**
 
 **Local-first. Enterprise-grade security. Open source.**
 
@@ -27,7 +27,7 @@ English · [简体中文](README_zh.md)
 
 ---
 
-Turn your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) into a database assistant. Ask it to query your databases, explore schemas, and write SQL or NoSQL queries — it works with:
+Let your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) securely access all your databases. Ask it to query your databases, explore schemas, and write SQL or NoSQL queries — it works with:
 
 - **SQL databases** (via [sqlkit](https://github.com/geek-fun/sqlkit)): **70+ databases** — PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more
 - **NoSQL databases** (via [dockit](https://github.com/geek-fun/dockit)): Elasticsearch, OpenSearch, MongoDB, DynamoDB

@@ -30,7 +30,7 @@
 
 ---
 
-本仓库是 **Data Studio MCP Server** 的家园 —— 一个统一的 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器，通过 [dockit](https://github.com/geek-fun/dockit) 和 [sqlkit](https://github.com/geek-fun/sqlkit) 桌面应用，让 AI 编程助手直接访问你的数据库。
+本仓库是 **Data Studio MCP Server** 的家园 —— 一个统一的 [Model Context Protocol](https://modelcontextprotocol.io/) 服务器，通过 [dockit](https://github.com/geek-fun/dockit) 和 [sqlkit](https://github.com/geek-fun/sqlkit) 桌面应用，让你的 AI 编程智能体安全访问所有数据库。
 
 - **SQL**（通过 sqlkit）：**70+ 种数据库** —— PostgreSQL、MySQL、SQL Server、Oracle、SQLite、DuckDB、ClickHouse、Snowflake、BigQuery 等
 - **NoSQL**（通过 dockit）：Elasticsearch、OpenSearch、MongoDB、DynamoDB

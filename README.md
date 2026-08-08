@@ -4,7 +4,7 @@
 
 # Data Studio Agent
 
-**Turn your AI coding agent into a database assistant — query, explore, and understand your databases in plain language.**
+**Let your AI coding agent securely access all your databases — query, explore, and understand your data in plain language.**
 
 **Local-first. Enterprise-grade security. Open source.**
 
