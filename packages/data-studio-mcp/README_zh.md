@@ -4,7 +4,7 @@
 
 # @geek-fun/data-studio-mcp
 
-**让你的 AI 编程智能体（Claude Code、Cursor、Windsurf、OpenCode、Codex）安全访问所有数据库 —— 用自然语言查询、探索和理解你的数据。**
+**让你的 AI 编程智能体（Claude Code、Cursor、Windsurf、OpenCode、Codex）安全访问所有数据库，一切用自然语言。**
 
 **本地优先。企业级安全。开源开放。**
 
@@ -27,12 +27,12 @@
 
 ---
 
-让你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）安全访问所有数据库。直接用自然语言提问，让它查询数据、查看表结构、编写 SQL 或 NoSQL 查询 — 支持：
+让你的 AI 编程助手（Claude Code、Cursor、Windsurf、OpenCode、Codex）安全访问所有数据库。直接用自然语言提问，让它查询数据、查看表结构、编写 SQL 或 NoSQL 查询。支持：
 
-- **SQL 数据库**（通过 [sqlkit](https://github.com/geek-fun/sqlkit)）：PostgreSQL、MySQL、SQL Server、SQLite
+- **SQL 数据库**（通过 [sqlkit](https://github.com/geek-fun/sqlkit)）：**70+ 种数据库**（PostgreSQL、MySQL、SQL Server、Oracle、SQLite、DuckDB、ClickHouse、Snowflake、BigQuery 等）
 - **NoSQL 数据库**（通过 [dockit](https://github.com/geek-fun/dockit)）：Elasticsearch、OpenSearch、MongoDB、DynamoDB
 
-已经装了桌面应用？那就只需两步：安装本包，然后把它加到你的 AI 工具里。无需部署服务器、无需管理 API Key — 一切都在你本机运行。
+如果已经装了桌面应用，只需两步：安装本包，然后把它加到你的 AI 工具里。无需部署服务器、无需管理 API Key。一切都在你本机运行。
 
 ## 环境要求
 
@@ -40,7 +40,7 @@
 2. 启动应用并添加至少一个数据库连接
 3. 确认 **设置 → MCP Bridge → 自动启动** 已开启（默认开启）
 
-两个应用都装可获得完整工具集 — SQL 和 NoSQL。装一个即可开始使用。
+两个应用都装可获得完整工具集，SQL 和 NoSQL。装一个即可开始使用。
 
 ## 安装
 
@@ -94,18 +94,18 @@ npx -y @geek-fun/data-studio-mcp
 - "在 MongoDB 中查找所有年龄大于 30 的用户"
 - "执行这条查询并解释结果"
 
-AI 助手可以查看表结构、运行查询、探索你的数据 — 并且它会展示执行的每一条查询。
+AI 助手可以查看表结构、运行查询、探索你的数据，然后展示它执行的每一条查询。
 
 ## 企业级安全
 
-为安全优先的团队而设计。LLM 是"有权限但受控"的执行者：它可以对你的数据做很多事，但永远无法获得你的凭据。
+LLM 能对你的数据做很多事，但它永远看不到你的凭据。策略模型按风险等级管控每个能力。
 
-- **凭据永不离开应用** —— LLM 只能看到一个不透明的 `connection_id`；真实凭据在 dockit/sqlkit 内部解析，绝不跨越 MCP 边界。你的密码和密钥始终留在本机、留在应用里。
-- **基于 ID 的资源访问** —— 代理严格通过连接 ID 访问数据库，绝不在提示词或工具参数中嵌入凭据。模型没有任何途径获取或泄露连接密钥。
-- **三级权限模型** —— 只读 / 数据读写 / 完全访问三种模式按风险等级管控每个能力。外加连接级覆盖：可将任意连接标记为只读，或按操作白名单放行。
-- **显式用户确认** —— 破坏性操作（DELETE、DROP、TRUNCATE）在策略中标记为 `Ask` —— 客户端在执行任何破坏性操作前都会弹出显式确认。不会有静默执行的破坏操作。
-- **操作级语句分类** —— SQL 在执行前按语句类型解析分类（读 / 写 / 删除 / DDL）。只写工具拒绝 DELETE 语句；删除工具拒绝 DDL —— 杜绝意外的权限升级。
-- **仅本地桥接** —— 桥接只绑定 `127.0.0.1` —— 其他机器无法访问。一个薄路由层，无需托管服务器、无需管理 API key、不向网络暴露任何东西。
+- **凭据永不离开应用。** LLM 只能看到一个不透明的 `connection_id`。真实凭据在 dockit/sqlkit 内部解析，绝不跨越 MCP 边界。你的密码和密钥始终留在本机、留在应用里。
+- **基于 ID 的资源访问。** 代理严格通过连接 ID 访问数据库。凭据不会出现在提示词或工具参数中，模型没有途径获取或泄露连接密钥。
+- **三级权限模型。** 只读 / 数据读写 / 完全访问三种模式按风险等级管控每个能力，外加连接级覆盖。你可以将任意连接标记为只读，或按操作白名单放行。
+- **显式用户确认。** 破坏性操作（DELETE、DROP、TRUNCATE）在策略中标记为 `Ask`。客户端在执行任何破坏性操作前都会弹出显式确认。
+- **操作级语句分类。** SQL 在执行前按语句类型解析分类（读 / 写 / 删除 / DDL）。只写工具拒绝 DELETE 语句；删除工具拒绝 DDL。
+- **仅本地桥接。** 桥接只绑定 `127.0.0.1`，其他机器无法访问，无需托管服务器、无需管理 API key。
 
 ## 工作原理
 
@@ -129,11 +129,11 @@ DynamoDB         SQL Server           |
 OpenSearch       SQLite               |
 ```
 
-MCP 服务器是一个轻量的路由层。所有数据库驱动、SSH 隧道和连接管理都在桌面应用中，由应用暴露一个本机 HTTP Bridge（仅 `127.0.0.1`）。MCP 服务器通过各应用的端口文件自动发现正在运行的后端 — 只暴露已运行后端的工具。
+MCP 服务器是一个轻量的路由层。所有数据库驱动、SSH 隧道和连接管理都在桌面应用中，由应用暴露一个本机 HTTP Bridge（仅 `127.0.0.1`）。MCP 服务器通过各应用的端口文件自动发现正在运行的后端，所以只有正在运行的后端的工具会被暴露。
 
 ## 工具参考
 
-所有工具遵循 `data_studio__{backend}__{action}` 命名规则。**用户确认**列标明哪些操作会在你的 AI 客户端中弹出显式确认提示 —— 破坏性操作绝不会静默执行。
+所有工具遵循 `data_studio__{backend}__{action}` 命名规则。**用户确认**列标明哪些操作会在你的 AI 客户端中弹出显式确认提示。
 
 | 工具 | 后端 | 风险 | 所需权限 | 用户确认 |
 |---|---|---|---|---|
@@ -218,6 +218,7 @@ MCP 服务器是一个轻量的路由层。所有数据库驱动、SSH 隧道和
 | `data_studio__dynamo__truncate_table` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
 
 **共 79 个工具。** 只读操作在**只读**模式下自动运行。提升操作（写入、索引/schema 变更）需要**数据读写**权限。破坏性操作（DELETE、DROP、TRUNCATE）需要**完全访问**权限，并始终弹出显式**用户确认**提示。
+
 ## 开发
 
 ```bash
@@ -229,7 +230,7 @@ npm run lint:check # ESLint
 
 ## 发布
 
-修改 `package.json` 中的版本号并合并到 `master`。[发布工作流](https://github.com/geek-fun/data-studio-agent/blob/master/.github/workflows/release-mcp.yml) 会自动发布到 npm（OIDC 可信发布）并创建 tag 和 GitHub Release。
+在 `package.json` 中升级版本并合并到 `master`。[发布工作流](https://github.com/geek-fun/data-studio-agent/blob/master/.github/workflows/release-mcp.yml) 会把包发布到 npm（OIDC 可信发布）并创建 tag + GitHub release。
 
 ## 许可证
 

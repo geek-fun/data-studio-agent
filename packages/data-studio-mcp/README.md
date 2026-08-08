@@ -4,7 +4,7 @@
 
 # @geek-fun/data-studio-mcp
 
-**Let your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) securely access all your databases — query, explore, and understand your data in plain language.**
+**Let your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) securely access all your databases, in plain language.**
 
 **Local-first. Enterprise-grade security. Open source.**
 
@@ -27,12 +27,12 @@ English · [简体中文](README_zh.md)
 
 ---
 
-Let your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) securely access all your databases. Ask it to query your databases, explore schemas, and write SQL or NoSQL queries — it works with:
+Let your AI coding agent (Claude Code, Cursor, Windsurf, OpenCode, Codex) securely access all your databases. Ask it to query, explore schemas, and write SQL or NoSQL queries. It works with:
 
-- **SQL databases** (via [sqlkit](https://github.com/geek-fun/sqlkit)): **70+ databases** — PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more
+- **SQL databases** (via [sqlkit](https://github.com/geek-fun/sqlkit)): **70+ databases** (PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more)
 - **NoSQL databases** (via [dockit](https://github.com/geek-fun/dockit)): Elasticsearch, OpenSearch, MongoDB, DynamoDB
 
-You already have the desktop apps installed? Then setup is two steps: install this package, and add it to your AI tool. No server to host, no API keys to manage — everything runs locally on your machine.
+If you already have the desktop apps installed, setup takes two steps: install this package and add it to your AI tool. There is no server to host and no API keys to manage. Everything runs locally on your machine.
 
 ## Prerequisites
 
@@ -40,7 +40,7 @@ You already have the desktop apps installed? Then setup is two steps: install th
 2. Launch the app and add at least one database connection
 3. Make sure **Settings → MCP Bridge → Auto-start** is enabled (it is by default)
 
-Install both apps to get the full tool set — SQL and NoSQL. One app is enough to get started.
+Install both apps to get the full tool set, SQL and NoSQL. One app is enough to get started.
 
 ## Installation
 
@@ -94,18 +94,18 @@ Once connected, just ask in plain language. The agent calls the database tools f
 - "Find all users older than 30 in MongoDB"
 - "Run this query and explain the results"
 
-The agent can read schemas, run queries, and explore your data — and it will show you every query it runs.
+The agent can read schemas, run queries, and explore your data, then shows you every query it runs.
 
 ## Enterprise-grade security
 
-Designed for security-first teams. The LLM is a privileged-but-contained actor: it can do a lot with your data, but it can never obtain your credentials.
+The LLM gets broad access to your data, but it never sees your credentials. The policy model gates every capability by risk level.
 
-- **Credentials never leave the apps** — the LLM only ever sees an opaque `connection_id`; real credentials are resolved inside dockit/sqlkit and never cross the MCP boundary. Your passwords and keys stay on your machine, in your app.
-- **ID-based resource access** — agents access databases strictly by connection ID, never by embedding credentials in prompts or tool arguments. There is no path for the model to obtain or exfiltrate connection secrets.
-- **Three-tier permission model** — Read Only / Data Read-Write / Full Access modes gate every capability by risk level. Plus per-connection overrides: mark any connection read-only, or allowlist specific actions.
-- **Explicit user confirmation** — destructive operations (DELETE, DROP, TRUNCATE) surface as `Ask` in the policy — the client prompts the user for explicit confirmation before anything destructive executes. Nothing destructive runs silently.
-- **Action-level statement classification** — SQL is parsed and classified by statement kind (Read / Write / Delete / DDL) before execution. Write-only tools reject DELETE statements; delete tools reject DDL — no accidental escalation.
-- **Local-only bridge** — the bridge binds to `127.0.0.1` exclusively — unreachable from other machines. A thin routing layer with no server to host, no API keys to manage, nothing exposed to the network.
+- **Credentials never leave the apps.** The LLM only ever sees an opaque `connection_id`. Real credentials are resolved inside dockit/sqlkit and never cross the MCP boundary. Your passwords and keys stay on your machine, in your app.
+- **ID-based resource access.** Agents access databases strictly by connection ID. Credentials never appear in prompts or tool arguments, so there is no path for the model to obtain or exfiltrate connection secrets.
+- **Three-tier permission model.** Read Only / Data Read-Write / Full Access modes gate every capability by risk level, with per-connection overrides. You can mark any connection read-only or allowlist specific actions.
+- **Explicit user confirmation.** Destructive operations (DELETE, DROP, TRUNCATE) surface as `Ask` in the policy. The client prompts the user for explicit confirmation before anything destructive runs.
+- **Action-level statement classification.** SQL is parsed and classified by statement kind (Read / Write / Delete / DDL) before execution. Write-only tools reject DELETE statements; delete tools reject DDL.
+- **Local-only bridge.** The bridge binds to `127.0.0.1` exclusively. It is unreachable from other machines, with no server to host and no API keys to manage.
 
 ## How it works
 
@@ -129,11 +129,11 @@ DynamoDB         SQL Server           |
 OpenSearch       SQLite               |
 ```
 
-The MCP server is a thin routing layer. All database drivers, SSH tunnels, and connection management live in the desktop apps, which expose a local HTTP bridge (`127.0.0.1` only). The MCP server auto-discovers running backends via each app's port file — only the tools of running backends are exposed.
+The MCP server is a thin routing layer. All database drivers, SSH tunnels, and connection management live in the desktop apps, which expose a local HTTP bridge (`127.0.0.1` only). The MCP server auto-discovers running backends via each app's port file, so only the tools of running backends are exposed.
 
 ## Tool reference
 
-All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run — nothing destructive ever executes silently.
+All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run.
 
 | Tool | Backend | Risk | Requires permission | User confirmation |
 |---|---|---|---|---|
@@ -218,6 +218,7 @@ All tools follow the `data_studio__{backend}__{action}` convention. The **User c
 | `data_studio__dynamo__truncate_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
 
 **79 tools total.** Read-only operations run automatically under **Read Only** mode. Elevated operations (writes, index/schema changes) require **Data Read-Write**. Destructive operations (DELETE, DROP, TRUNCATE) require **Full Access** and always surface an explicit **user confirmation** prompt.
+
 ## Development
 
 ```bash

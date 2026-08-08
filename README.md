@@ -4,7 +4,7 @@
 
 # Data Studio Agent
 
-**Let your AI coding agent securely access all your databases — query, explore, and understand your data in plain language.**
+**Let your AI coding agent securely access all your databases, in plain language.**
 
 **Local-first. Enterprise-grade security. Open source.**
 
@@ -30,24 +30,24 @@ English · [简体中文](README_zh.md)
 
 ---
 
-This repository is home to the **Data Studio MCP Server** — a unified [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI coding agents direct access to your databases through the [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit) desktop apps.
+This repository contains the **Data Studio MCP Server**, a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI coding agents direct access to your databases through the [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit) desktop apps.
 
-- **SQL** (via sqlkit): **70+ databases** — PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more
+- **SQL** (via sqlkit): **70+ databases** (PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more)
 - **NoSQL** (via dockit): Elasticsearch, OpenSearch, MongoDB, DynamoDB
 
 ## Features
 
-- **Any AI coding agent** — Claude Code, Cursor, Windsurf, OpenCode, Codex, Cline, Pi, Qoder, GitHub Copilot, and any MCP client
-- **Any OS** — macOS, Windows, Linux
-- **Any LLM model** — bring your own provider, no lock-in
-- **One MCP server, one config** — routes to both SqlKit (SQL) and DocKit (NoSQL) bridges over localhost
-- **Enterprise-grade security** — see below
+- **Any AI coding agent.** Claude Code, Cursor, Windsurf, OpenCode, Codex, Cline, Pi, Qoder, GitHub Copilot, or any MCP client.
+- **Any OS.** macOS, Windows, Linux.
+- **Any LLM model.** Bring your own provider. No lock-in.
+- **One MCP server, one config.** Routes to both SqlKit (SQL) and DocKit (NoSQL) bridges over localhost.
+- **Enterprise-grade security.** See below.
 
 ## Quick start
 
 ### 1. Prerequisites
 
-Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](https://github.com/geek-fun/sqlkit), add a database connection, and make sure **Settings → MCP Bridge → Auto-start** is enabled (default). Install both apps for the full SQL + NoSQL tool set.
+Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](https://github.com/geek-fun/sqlkit), add a database connection, and make sure **Settings → MCP Bridge → Auto-start** is enabled (it is by default). Install both apps for the full SQL + NoSQL tool set.
 
 ### 2. Install the MCP server
 
@@ -55,7 +55,7 @@ Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](
 npm install -g @geek-fun/data-studio-mcp
 ```
 
-Or run without installing (npx downloads on first run):
+Or run it without installing (npx downloads it on first run):
 
 ```bash
 npx -y @geek-fun/data-studio-mcp
@@ -63,19 +63,19 @@ npx -y @geek-fun/data-studio-mcp
 
 ### 3. Add it to your AI tool
 
-**OpenAI Codex** — one command:
+**OpenAI Codex**, one command:
 
 ```bash
 codex mcp add data-studio -- npx -y @geek-fun/data-studio-mcp
 ```
 
-**Claude Code** — one command:
+**Claude Code**, one command:
 
 ```bash
 claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 ```
 
-**Cursor** — create `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+**Cursor.** Create `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
 
 ```json
 {
@@ -88,7 +88,7 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 }
 ```
 
-**Windsurf** — create `~/.codeium/windsurf/mcp_config.json` (global only):
+**Windsurf.** Create `~/.codeium/windsurf/mcp_config.json` (global only):
 
 ```json
 {
@@ -101,7 +101,7 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 }
 ```
 
-**OpenCode** — add to `opencode.json` (project) or `~/.config/opencode/opencode.json` (global):
+**OpenCode.** Add to `opencode.json` (project) or `~/.config/opencode/opencode.json` (global):
 
 ```json
 {
@@ -116,7 +116,7 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 }
 ```
 
-**Any other MCP client** — register a stdio server with command `npx` and args `-y @geek-fun/data-studio-mcp`.
+**Any other MCP client.** Register a stdio server with command `npx` and args `-y @geek-fun/data-studio-mcp`.
 
 ### 4. Tune permissions (optional)
 
@@ -130,29 +130,29 @@ Open **Settings → MCP Bridge** in dockit/sqlkit to control what the agent can 
 
 ### 5. Start asking
 
-Just use plain language — the agent queries your databases for you:
+Use plain language. The agent queries your databases for you:
 
 - "List all tables in my PostgreSQL database"
 - "Show me the last 10 orders from the Elasticsearch index `orders*`"
 - "Find all users older than 30 in MongoDB"
 - "Run this query and explain the results"
 
-The agent reads schemas, runs queries, and explores your data — and shows you every query it executes.
+The agent reads schemas, runs queries, and explores your data, then shows you every query it executed.
 
 ## Enterprise-grade security
 
-Designed for security-first teams. The LLM is a privileged-but-contained actor: it can do a lot with your data, but it can never obtain your credentials.
+The LLM gets broad access to your data, but it never sees your credentials. The policy model gates every capability by risk level.
 
-- **Credentials never leave the apps** — the LLM only ever sees an opaque `connection_id`; real credentials are resolved inside dockit/sqlkit and never cross the MCP boundary. Your passwords and keys stay on your machine, in your app.
-- **ID-based resource access** — agents access databases strictly by connection ID, never by embedding credentials in prompts or tool arguments. There is no path for the model to obtain or exfiltrate connection secrets.
-- **Three-tier permission model** — Read Only / Data Read-Write / Full Access modes gate every capability by risk level. Plus per-connection overrides: mark any connection read-only, or allowlist specific actions.
-- **Explicit user confirmation** — destructive operations (DELETE, DROP, TRUNCATE) surface as `Ask` in the policy — the client prompts the user for explicit confirmation before anything destructive executes. Nothing destructive runs silently.
-- **Action-level statement classification** — SQL is parsed and classified by statement kind (Read / Write / Delete / DDL) before execution. Write-only tools reject DELETE statements; delete tools reject DDL — no accidental escalation.
-- **Local-only bridge** — the bridge binds to `127.0.0.1` exclusively — unreachable from other machines. A thin routing layer with no server to host, no API keys to manage, nothing exposed to the network.
+- **Credentials never leave the apps.** The LLM only ever sees an opaque `connection_id`. Real credentials are resolved inside dockit/sqlkit and never cross the MCP boundary. Your passwords and keys stay on your machine, in your app.
+- **ID-based resource access.** Agents access databases strictly by connection ID. Credentials never appear in prompts or tool arguments, so there is no path for the model to obtain or exfiltrate connection secrets.
+- **Three-tier permission model.** Read Only / Data Read-Write / Full Access modes gate every capability by risk level, with per-connection overrides. You can mark any connection read-only or allowlist specific actions.
+- **Explicit user confirmation.** Destructive operations (DELETE, DROP, TRUNCATE) surface as `Ask` in the policy. The client prompts the user for explicit confirmation before anything destructive runs.
+- **Action-level statement classification.** SQL is parsed and classified by statement kind (Read / Write / Delete / DDL) before execution. Write-only tools reject DELETE statements; delete tools reject DDL.
+- **Local-only bridge.** The bridge binds to `127.0.0.1` exclusively. It is unreachable from other machines, with no server to host and no API keys to manage.
 
 ## Tool reference
 
-All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run — nothing destructive ever executes silently.
+All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run.
 
 | Tool | Backend | Risk | Requires permission | User confirmation |
 |---|---|---|---|---|
@@ -237,6 +237,7 @@ All tools follow the `data_studio__{backend}__{action}` convention. The **User c
 | `data_studio__dynamo__truncate_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
 
 **79 tools total.** Read-only operations run automatically under **Read Only** mode. Elevated operations (writes, index/schema changes) require **Data Read-Write**. Destructive operations (DELETE, DROP, TRUNCATE) require **Full Access** and always surface an explicit **user confirmation** prompt.
+
 ## How it works
 
 ```
@@ -265,10 +266,10 @@ The MCP server is a thin routing layer. All database drivers, SSH tunnels, and c
 
 ## For developers
 
-Under the hood, this repository also contains the **data-studio-agent Rust framework** — the shared AI agent loop (provider adapters, streaming, tool calling, context compaction) that powers the built-in assistants in [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit).
+This repository also contains the **data-studio-agent Rust framework**, the shared AI agent loop (provider adapters, streaming, tool calling, context compaction) that powers the built-in assistants in [dockit](https://github.com/geek-fun/dockit) and [sqlkit](https://github.com/geek-fun/sqlkit).
 
 See [crates/data-studio-agent/README.md](crates/data-studio-agent/README.md) for installation, architecture, and integration guides.
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0. See [LICENSE](LICENSE).
