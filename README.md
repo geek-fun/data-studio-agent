@@ -22,6 +22,10 @@
   <img src="https://img.shields.io/badge/Claude%20Code%20%7C%20Cursor%20%7C%20OpenCode%20%7C%20Codex%20%7C%20Cline-7C3AED"/>
 </p>
 
+<p align="center">
+  <img src="docs/images/data-studio-terminal.gif" alt="Ask your database in plain language — live demo" width="720"/>
+</p>
+
 [📖 Product Page](https://www.geekfun.club/products/data-studio-agent/) · [npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
 
 English · [简体中文](README_zh.md)

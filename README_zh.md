@@ -22,6 +22,10 @@
   <img src="https://img.shields.io/badge/Claude%20Code%20%7C%20Cursor%20%7C%20OpenCode%20%7C%20Codex%20%7C%20Cline-7C3AED"/>
 </p>
 
+<p align="center">
+  <img src="docs/images/data-studio-terminal.gif" alt="用自然语言和数据库对话 — 实时演示" width="720"/>
+</p>
+
 [📖 产品页](https://www.geekfun.club/zh/products/data-studio-agent/) · [npm](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) · [dockit](https://github.com/geek-fun/dockit) · [sqlkit](https://github.com/geek-fun/sqlkit) · [Releases](https://github.com/geek-fun/data-studio-agent/releases)
 
 [English](README.md) · 简体中文
