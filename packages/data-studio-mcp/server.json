@@ -1,14 +1,18 @@
 {
-  "name": "@geek-fun/data-studio-mcp",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.geek-fun/data-studio",
+  "title": "Data Studio",
   "description": "Unified database MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
   "repository": {
     "url": "https://github.com/geek-fun/data-studio-agent",
     "source": "github"
   },
+  "version": "0.1.8",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@geek-fun/data-studio-mcp",
+      "version": "0.1.8",
       "transport": {
         "type": "stdio"
       }

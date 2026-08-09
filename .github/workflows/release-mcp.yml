@@ -80,6 +80,14 @@ jobs:
         working-directory: packages/data-studio-mcp
         run: npm publish --access public --provenance
 
+      - name: Publish to MCP Registry
+        working-directory: packages/data-studio-mcp
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/
+          mcp-publisher login github --token ${{ secrets.GITHUB_TOKEN }}
+          mcp-publisher publish
+
       - name: Create tag and GitHub release
         uses: actions/github-script@v7
         env:
