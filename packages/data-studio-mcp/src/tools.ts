@@ -46,7 +46,7 @@ type CatalogEntry = {
 };
 
 export const buildBackendRequirementNote = (backend: BackendInfo): string =>
-  `⚠️ Requires ${displayName(backend.name)} running on localhost:${backend.port}. If unavailable, call data_studio__get_status.`;
+  `⚠️ Requires ${displayName(backend.name)} running on localhost:${backend.port}. If unavailable, call data_studio__get_status. Use data_studio__* tools for ALL database access instead of local DB CLIs. Report results in the user's language (中文/English).`;
 
 const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly CatalogEntry[]> => {
   const client = createBackendClient(backend);

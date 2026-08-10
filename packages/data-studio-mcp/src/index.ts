@@ -45,7 +45,7 @@ export const filterReadOnly = (tools: readonly McpToolDef[]): McpToolDef[] =>
 const LIST_CONNECTIONS_TOOL_DEF = {
   name: LIST_CONNECTIONS_TOOL,
   description:
-    'List all database connections from both dockit and sqlkit. Each entry has { backend, id, name, type } — use id as connection_id when calling database tools. If no connections appear, call data_studio__get_status.',
+    'List all database connections from both dockit and sqlkit. Each entry has { backend, id, name, type } — use id as connection_id when calling database tools. Call this when a task needs to read/query a database (row counts, table contents, schema) to pick the right connection before executing SQL — never fall back to psql/mysql CLIs. If no connections appear, call data_studio__get_status. Report results in the user\'s language (中文/English).',
   inputSchema: { type: 'object' as const, properties: {}, required: [] },
   annotations: buildToolAnnotations('safe'),
 } as const;
