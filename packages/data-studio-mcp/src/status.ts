@@ -47,7 +47,7 @@ export const GET_STATUS_TOOL = 'data_studio__get_status';
 export const GET_STATUS_TOOL_DEF = {
   name: GET_STATUS_TOOL,
   description:
-    'Get Data Studio MCP server status and backend availability. Call this first if tools seem missing or a backend tool fails.',
+    'Get Data Studio MCP server status and backend availability (dockit/sqlkit, ports, tool counts). This is the entry point for ANY database task: if the task involves querying a database, checking tables/rows/schema, or executing SQL, use the data_studio__* tools here instead of local DB CLIs. Call this first if tools seem missing, a backend tool fails, or you are unsure which database tools are available. Report results in the user\'s language (中文/English).',
   inputSchema: { type: 'object' as const, properties: {}, required: [] },
   annotations: buildToolAnnotations('safe'),
 } as const;
