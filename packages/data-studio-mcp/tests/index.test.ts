@@ -38,6 +38,7 @@ const makeSnapshot = (overrides: Partial<RegistrySnapshot> = {}): RegistrySnapsh
   routeMap: new Map(),
   clients: new Map(),
   statuses: [],
+  connections: {},
   version: '0.1.5',
   uptimeSeconds: 0,
   readOnly: false,
@@ -264,14 +265,23 @@ describe('buildServer', () => {
         hint: 'SqlKit is not running or its port file is missing',
       },
     ];
-    const snapshot = makeSnapshot({ statuses });
+    const snapshot = makeSnapshot({
+      statuses,
+      connections: {
+        sqlkit: [
+          { backend: 'sqlkit', id: 'c1', name: 'local-pg', type: 'PostgreSQL' },
+          { backend: 'sqlkit', id: 'c2', name: 'local-mysql', type: 'MySQL' },
+        ],
+      },
+    });
     const { client } = await connectPair(buildServer(makeOpts({ snapshot })));
 
     const res = await client.callTool({ name: GET_STATUS_TOOL });
     expect(res.isError).toBeFalsy();
     const payload = JSON.parse(textOf(res)) as {
       server: { version: string };
-      backends: Array<{ name: string; status: string; hint: string }>;
+      backends: Array<{ name: string; status: string; hint: string; connectionCount: number }>;
+      summary: { totalConnections: number; connectionsByType: Record<string, number> };
     };
     expect(payload.server.version).toBe('0.1.5');
     expect(payload.backends).toHaveLength(2);
@@ -279,8 +289,17 @@ describe('buildServer', () => {
       name: 'dockit',
       status: 'unavailable',
       hint: 'Launch DocKit: open -a DocKit',
+      connectionCount: 0,
     });
-    expect(payload.backends[1]).toMatchObject({ name: 'sqlkit', status: 'unavailable' });
+    expect(payload.backends[1]).toMatchObject({
+      name: 'sqlkit',
+      status: 'unavailable',
+      connectionCount: 2,
+    });
+    expect(payload.summary).toMatchObject({
+      totalConnections: 2,
+      connectionsByType: { PostgreSQL: 1, MySQL: 1 },
+    });
   });
 
   it('S5: calling a backend tool whose backend is unavailable returns a structured error', async () => {
@@ -365,5 +384,147 @@ describe('buildServer', () => {
     await server.sendToolListChanged();
     await new Promise(r => setTimeout(r, 0));
     expect(changed).toBe(1);
+  });
+
+  it('R1: lists connections resource and a schema resource per connected backend', async () => {
+    const clientStub: BackendClient = {
+      name: 'dockit',
+      baseUrl: 'http://127.0.0.1:9120',
+      listTools: async () => ({
+        tools: [],
+        connections: [{ id: '1', name: 'local-es', type: 'Elasticsearch' }],
+      }),
+      invokeTool: async () => ({ status: 200, data: 'tables: users, orders' }),
+    };
+    const snapshot = makeSnapshot({
+      clients: new Map([['dockit', clientStub]]),
+      statuses: [
+        {
+          name: 'dockit',
+          port: 9120,
+          baseUrl: 'http://127.0.0.1:9120',
+          status: 'connected',
+          toolCount: 0,
+          hint: 'Connected',
+        },
+      ],
+    });
+    const { client } = await connectPair(buildServer(makeOpts({ snapshot })));
+
+    const { resources } = await client.listResources();
+    const uris = resources.map(r => r.uri);
+    expect(uris).toContain('data-studio://connections');
+    expect(uris).toContain('data-studio://dockit/1/schema');
+
+    const read = await client.readResource({
+      uri: 'data-studio://dockit/1/schema',
+    });
+    expect(read.contents[0].text).toContain('users');
+  });
+
+  it('R2: exposes resource templates and prompts', async () => {
+    const { client } = await connectPair(buildServer(makeOpts()));
+
+    const { resourceTemplates } = await client.listResourceTemplates();
+    expect(resourceTemplates[0].uriTemplate).toContain('{connection_id}');
+
+    const { prompts } = await client.listPrompts();
+    const names = prompts.map(p => p.name);
+    expect(names).toContain('explore-database');
+    expect(names).toContain('debug-query');
+
+    const got = await client.getPrompt({
+      name: 'inspect-table',
+      arguments: { connection_id: 'c1', table: 'users' },
+    });
+    expect(got.messages[0].content).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('users'),
+    });
+  });
+
+  it('C1: completes connection ids and database names', async () => {
+    const clientStub: BackendClient = {
+      name: 'sqlkit',
+      baseUrl: 'http://127.0.0.1:9121',
+      listTools: async () => ({
+        tools: [],
+        connections: [{ id: 'conn-1', name: 'local-pg', type: 'PostgreSQL' }],
+      }),
+      invokeTool: async (_name, _args) => ({
+        status: 200,
+        data: { data: [{ name: 'si_dev' }, { name: 'postgres' }] },
+      }),
+    };
+    const snapshot = makeSnapshot({
+      clients: new Map([['sqlkit', clientStub]]),
+    });
+    const { client } = await connectPair(buildServer(makeOpts({ snapshot })));
+
+    const connCompletion = await client.complete({
+      ref: { type: 'ref/prompt', name: 'explore-database' },
+      argument: { name: 'connection_id', value: '' },
+    });
+    expect(connCompletion.completion.values).toContain('conn-1');
+
+    const dbCompletion = await client.complete({
+      ref: { type: 'ref/prompt', name: 'explore-database' },
+      argument: { name: 'database', value: '' },
+    });
+    expect(dbCompletion.completion.values).toContain('si_dev');
+  });
+
+  it('SC1: execute_query results carry structuredContent', async () => {
+    const clientStub: BackendClient = {
+      name: 'sqlkit',
+      baseUrl: 'http://127.0.0.1:9121',
+      listTools: async () => ({ tools: [], connections: [] }),
+      invokeTool: async () => ({
+        status: 200,
+        data: {
+          columns: ['id', 'name'],
+          rows: [{ id: 1, name: 'a' }],
+        },
+      }),
+    };
+    const routeMap = new Map<string, Route>([
+      [
+        'data_studio__sqlkit__execute_query',
+        { backendName: 'sqlkit', internalName: 'execute_query' },
+      ],
+    ]);
+    const tools = [
+      {
+        ...makeTool('execute_query', 'safe'),
+        name: 'data_studio__sqlkit__execute_query',
+        backendName: 'sqlkit' as const,
+      },
+    ];
+    const snapshot = makeSnapshot({
+      routeMap,
+      tools,
+      clients: new Map([['sqlkit', clientStub]]),
+      statuses: [
+        {
+          name: 'sqlkit',
+          port: 9121,
+          baseUrl: 'http://127.0.0.1:9121',
+          status: 'connected',
+          toolCount: 1,
+          hint: 'Connected',
+        },
+      ],
+    });
+    const { client } = await connectPair(buildServer(makeOpts({ snapshot })));
+
+    const res = await client.callTool({
+      name: 'data_studio__sqlkit__execute_query',
+      arguments: { connection_id: 'c1', sql: 'SELECT id, name FROM users' },
+    });
+    expect(res.isError).toBeFalsy();
+    expect(res.structuredContent).toMatchObject({
+      columns: ['id', 'name'],
+      rowCount: 1,
+    });
   });
 });
