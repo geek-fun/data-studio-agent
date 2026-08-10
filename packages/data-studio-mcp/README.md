@@ -131,7 +131,7 @@ OpenSearch       SQLite               |
 
 The MCP server is a thin routing layer. All database drivers, SSH tunnels, and connection management live in the desktop apps, which expose a local HTTP bridge (`127.0.0.1` only). The MCP server auto-discovers running backends via each app's port file, so only the tools of running backends are exposed.
 
-## Tool reference
+## Tools
 
 All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run.
 
