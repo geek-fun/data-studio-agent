@@ -394,7 +394,15 @@ describe('buildServer', () => {
         tools: [],
         connections: [{ id: '1', name: 'local-es', type: 'Elasticsearch' }],
       }),
-      invokeTool: async () => ({ status: 200, data: 'tables: users, orders' }),
+      invokeTool: async (name: string) => {
+        if (name === 'list_tables') {
+          return { status: 200, data: [{ table_name: 'users' }, { table_name: 'orders' }] };
+        }
+        if (name === 'list_columns') {
+          return { status: 200, data: [{ name: 'id', data_type: 'text', is_primary_key: true }] };
+        }
+        return { status: 200, data: '' };
+      },
     };
     const snapshot = makeSnapshot({
       clients: new Map([['dockit', clientStub]]),

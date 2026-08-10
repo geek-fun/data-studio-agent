@@ -377,27 +377,31 @@ const buildPromptResult = (
 };
 
 const completeArgument = async (
-  params: { ref: unknown; argument: { name: string; value: string } },
+  params: {
+    ref: unknown;
+    argument: { name: string; value: string };
+    context?: { arguments?: Record<string, string> };
+  },
   snapshot: RegistrySnapshot,
 ): Promise<{ completion: { values: string[]; total?: number; hasMore?: boolean } }> => {
   const argName = params.argument.name;
+  const contextArgs = params.context?.arguments ?? {};
 
-  // Connection ids across both backends.
   if (argName === 'connection_id') {
     const conns = await listConnections(snapshot.clients);
     const values = conns.map(c => String(c.id));
     return { completion: { values } };
   }
 
-  // Database names for the first connection.
   if (argName === 'database') {
     const conns = await listConnections(snapshot.clients);
-    const first = conns[0];
-    if (!first) return { completion: { values: [] } };
-    const client = snapshot.clients.get(first.backend);
+    const targetId = contextArgs.connection_id ?? String(conns[0]?.id ?? '');
+    const conn = conns.find(c => String(c.id) === targetId) ?? conns[0];
+    if (!conn) return { completion: { values: [] } };
+    const client = snapshot.clients.get(conn.backend);
     if (!client) return { completion: { values: [] } };
     const result = await client.invokeTool('list_databases', {
-      connection_id: String(first.id),
+      connection_id: String(conn.id),
     });
     const data = result.data as { data?: Array<{ name: string }> } | undefined;
     const names = Array.isArray(data?.data)
