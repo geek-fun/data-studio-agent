@@ -1,4 +1,5 @@
 import { createBackendClient, probeBackend, type BackendClient } from './backends.js';
+import { listConnections, type MergedConnection } from './connections.js';
 import {
   discoverBackends,
   KNOWN_BACKENDS,
@@ -28,6 +29,7 @@ export class BackendRegistry {
   private routeMap = new Map<string, Route>();
   private clients = new Map<string, BackendClient>();
   private statuses: readonly BackendStatus[] = [];
+  private connections: Record<string, MergedConnection[]> = {};
   private signature = '';
   private refreshing = false;
 
@@ -62,6 +64,7 @@ export class BackendRegistry {
       routeMap: this.routeMap,
       clients: this.clients,
       statuses: this.statuses,
+      connections: this.connections,
       version: SERVER_VERSION,
       uptimeSeconds: Math.floor((Date.now() - this.startedAt) / 1000),
       readOnly: this.readOnly,
@@ -86,6 +89,7 @@ export class BackendRegistry {
 
     this.clients = new Map(connected.map(b => [b.name, createBackendClient(b)]));
     this.statuses = this.buildStatuses(candidates, reachable, tools);
+    this.connections = await this.collectConnections(connected);
 
     const signature = tools
       .map(t => t.name)
@@ -99,6 +103,20 @@ export class BackendRegistry {
       this.onToolsChanged?.(this.snapshot());
     }
     return changed;
+  }
+
+  private async collectConnections(
+    connected: readonly BackendInfo[],
+  ): Promise<Record<string, MergedConnection[]>> {
+    const connectedClients = new Map(
+      connected.map(b => [b.name as BackendName, createBackendClient(b)]),
+    );
+    const all = await listConnections(connectedClients);
+    const byBackend: Record<string, MergedConnection[]> = {};
+    for (const conn of all) {
+      (byBackend[conn.backend] ??= []).push(conn);
+    }
+    return byBackend;
   }
 
   private async probeAll(candidates: readonly BackendInfo[]): Promise<Set<BackendName>> {

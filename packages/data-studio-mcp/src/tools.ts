@@ -4,6 +4,7 @@ import { createBackendClient, type BridgeToolDef } from './backends.js';
 
 export type McpToolDef = {
   name: string;
+  title?: string;
   description: string;
   inputSchema: object;
   backendName: string;
@@ -46,7 +47,16 @@ type CatalogEntry = {
 };
 
 export const buildBackendRequirementNote = (backend: BackendInfo): string =>
-  `⚠️ Requires ${displayName(backend.name)} running on localhost:${backend.port}. If unavailable, call data_studio__get_status. Use data_studio__* tools for ALL database access instead of local DB CLIs. Report results in the user's language (中文/English).`;
+  `⚠️ Requires ${displayName(backend.name)} running on localhost:${backend.port}. If unavailable, call data_studio__get_status.`;
+
+/** Derive a human-readable title from a snake_case tool name (e.g. "execute_query" → "Execute Query"). */
+export const humanizeToolName = (name: string): string => {
+  const lastSegment = name.split('__').pop() ?? name;
+  const words = lastSegment.split('_').filter(Boolean);
+  if (words.length === 0) return name;
+  const capitalized = words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return capitalized.length <= 48 ? capitalized : capitalized.slice(0, 45) + '...';
+};
 
 const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly CatalogEntry[]> => {
   const client = createBackendClient(backend);
@@ -64,6 +74,7 @@ const fetchBackendCatalog = async (backend: BackendInfo): Promise<readonly Catal
     return {
       tool: {
         name: mcpName,
+        title: humanizeToolName(bt.name),
         description: bt.description.includes('data_studio__get_status')
           ? bt.description
           : `${bt.description}\n\n${note}`,
