@@ -106,12 +106,9 @@ export class BackendRegistry {
   }
 
   private async collectConnections(
-    connected: readonly BackendInfo[],
+    _connected: readonly BackendInfo[],
   ): Promise<Record<string, MergedConnection[]>> {
-    const connectedClients = new Map(
-      connected.map(b => [b.name as BackendName, createBackendClient(b)]),
-    );
-    const all = await listConnections(connectedClients);
+    const all = await listConnections(this.clients);
     const byBackend: Record<string, MergedConnection[]> = {};
     for (const conn of all) {
       (byBackend[conn.backend] ??= []).push(conn);

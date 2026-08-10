@@ -111,9 +111,10 @@ export const readResource = async (
     throw new Error(`Backend ${backend} not available for resource ${uri}`);
   }
 
-  // sqlkit exposes get_schema directly; fall back to list_tables for other
-  // backends that may not have a schema-dump tool.
-  const schemaText = await fetchSchemaText(client, connectionId);
+  const schemaText =
+    backend === 'sqlkit'
+      ? await fetchSchemaText(client, connectionId)
+      : await fetchSchemaViaListTables(client, connectionId);
 
   return {
     contents: [
@@ -202,4 +203,61 @@ const fetchSchemaText = async (client: BackendClient, connectionId: string): Pro
     if (inner !== undefined) return JSON.stringify(inner, null, 2);
   }
   return JSON.stringify(data, null, 2);
+};
+
+const fetchSchemaViaListTables = async (
+  client: BackendClient,
+  connectionId: string,
+): Promise<string> => {
+  const tablesResult = await client.invokeTool('list_tables', { connection_id: connectionId });
+  if (tablesResult.status >= 400) {
+    throw new Error(
+      `Failed to list tables: ${tablesResult.message ?? `HTTP ${tablesResult.status}`}`,
+    );
+  }
+  const tableData = tablesResult.data;
+  const tables = Array.isArray(tableData)
+    ? tableData
+    : Array.isArray((tableData as Record<string, unknown>)?.data)
+      ? ((tableData as Record<string, unknown>).data as unknown[])
+      : [];
+  const tableNames = tables
+    .map(t => {
+      if (!t || typeof t !== 'object') return null;
+      const rec = t as Record<string, unknown>;
+      return String(rec.table_name ?? rec.name ?? rec.tableName ?? '');
+    })
+    .filter(Boolean);
+  if (tableNames.length === 0) return 'No tables found.';
+  const lines: string[] = [];
+  for (const table of tableNames) {
+    lines.push(`Table: ${table}`);
+    try {
+      const colsResult = await client.invokeTool('list_columns', {
+        connection_id: connectionId,
+        table,
+      });
+      if (colsResult.status < 400) {
+        const colData = colsResult.data;
+        const cols = Array.isArray(colData)
+          ? colData
+          : Array.isArray((colData as Record<string, unknown>)?.data)
+            ? ((colData as Record<string, unknown>).data as unknown[])
+            : [];
+        for (const c of cols) {
+          if (!c || typeof c !== 'object') continue;
+          const rec = c as Record<string, unknown>;
+          const name = String(rec.name ?? rec.column_name ?? '?');
+          const type = String(rec.data_type ?? rec.type ?? '?');
+          const pk = rec.is_primary_key === true ? ' PK' : '';
+          const nullable = rec.nullable === false ? '' : ' NULL';
+          lines.push(`  ${name}: ${type}${pk}${nullable}`);
+        }
+      }
+    } catch {
+      // skip tables whose columns can't be fetched
+    }
+    lines.push('');
+  }
+  return lines.join('\n');
 };
