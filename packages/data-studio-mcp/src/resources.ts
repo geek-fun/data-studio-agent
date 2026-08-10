@@ -196,8 +196,22 @@ const extractArray = (data: unknown): unknown[] => {
   if (data && typeof data === 'object' && 'data' in data) {
     const inner = (data as Record<string, unknown>).data;
     if (Array.isArray(inner)) return inner;
+    if (inner && typeof inner === 'object') {
+      const innerRec = inner as Record<string, unknown>;
+      for (const v of Object.values(innerRec)) {
+        if (Array.isArray(v)) return v;
+      }
+    }
   }
   return [];
+};
+
+const unwrapBridgePayload = (data: unknown): unknown => {
+  if (data && typeof data === 'object' && 'data' in data) {
+    const inner = (data as Record<string, unknown>).data;
+    if (inner !== null && inner !== undefined) return inner;
+  }
+  return data;
 };
 
 const fetchSchemaText = async (client: BackendClient, connectionId: string): Promise<string> => {
@@ -263,14 +277,12 @@ const fetchMongoSchema = async (client: BackendClient, connectionId: string): Pr
       `Failed to list MongoDB databases: ${dbsResult.message ?? `HTTP ${dbsResult.status}`}`,
     );
   }
-  const dbs = extractArray(dbsResult.data);
-  const dbNames = dbs
-    .map(d => {
-      if (!d || typeof d !== 'object') return null;
-      const rec = d as Record<string, unknown>;
-      return String(rec.name ?? rec.database ?? '');
-    })
-    .filter(Boolean);
+  const dbsPayload = unwrapBridgePayload(dbsResult.data) as Record<string, unknown> | unknown[];
+  const dbNames: string[] = Array.isArray(dbsPayload)
+    ? dbsPayload.map(d => String(d))
+    : Array.isArray((dbsPayload as Record<string, unknown>)?.databases)
+      ? ((dbsPayload as Record<string, unknown>).databases as unknown[]).map(d => String(d))
+      : [];
   if (dbNames.length === 0) return 'No databases found.';
   const lines: string[] = [];
   for (const db of dbNames) {
@@ -281,10 +293,15 @@ const fetchMongoSchema = async (client: BackendClient, connectionId: string): Pr
         database: db,
       });
       if (colsResult.status < 400) {
-        const cols = extractArray(colsResult.data);
+        const colsPayload = unwrapBridgePayload(colsResult.data) as
+          Record<string, unknown> | unknown[];
+        const cols: unknown[] = Array.isArray(colsPayload)
+          ? colsPayload
+          : Array.isArray((colsPayload as Record<string, unknown>)?.collections)
+            ? ((colsPayload as Record<string, unknown>).collections as unknown[])
+            : [];
         for (const c of cols) {
-          const rec = c as Record<string, unknown> | null;
-          if (rec) lines.push(`  Collection: ${String(rec.name ?? rec.collection ?? '?')}`);
+          lines.push(`  Collection: ${String(c)}`);
         }
       }
     } catch {
@@ -304,14 +321,13 @@ const fetchDynamoSchema = async (client: BackendClient, connectionId: string): P
       `Failed to list DynamoDB tables: ${tablesResult.message ?? `HTTP ${tablesResult.status}`}`,
     );
   }
-  const tables = extractArray(tablesResult.data);
-  const tableNames = tables
-    .map(t => {
-      if (!t || typeof t !== 'object') return null;
-      const rec = t as Record<string, unknown>;
-      return String(rec.table_name ?? rec.tableName ?? rec.name ?? '');
-    })
-    .filter(Boolean);
+  const tablesPayload = unwrapBridgePayload(tablesResult.data) as
+    Record<string, unknown> | unknown[];
+  const tableNames: string[] = Array.isArray(tablesPayload)
+    ? tablesPayload.map(t => String(t))
+    : Array.isArray((tablesPayload as Record<string, unknown>)?.tableNames)
+      ? ((tablesPayload as Record<string, unknown>).tableNames as unknown[]).map(t => String(t))
+      : [];
   if (tableNames.length === 0) return 'No tables found.';
   const lines: string[] = [];
   for (const table of tableNames) {
@@ -322,14 +338,16 @@ const fetchDynamoSchema = async (client: BackendClient, connectionId: string): P
         table_name: table,
       });
       if (descResult.status < 400) {
-        const desc = extractArray(descResult.data);
-        for (const c of desc) {
-          const rec = c as Record<string, unknown> | null;
-          if (rec) {
-            const name = String(rec.attribute_name ?? rec.name ?? '?');
-            const type = String(rec.attribute_type ?? rec.type ?? '?');
-            lines.push(`  ${name}: ${type}`);
-          }
+        const desc = unwrapBridgePayload(descResult.data) as Record<string, unknown> | null;
+        const attrs = Array.isArray(desc?.attributeDefinitions)
+          ? (desc.attributeDefinitions as Array<Record<string, unknown>>)
+          : Array.isArray(desc?.keySchema)
+            ? (desc.keySchema as Array<Record<string, unknown>>)
+            : [];
+        for (const a of attrs) {
+          const name = String(a.attributeName ?? a.name ?? '?');
+          const type = String(a.attributeType ?? a.keyType ?? a.type ?? '?');
+          lines.push(`  ${name}: ${type}`);
         }
       }
     } catch {

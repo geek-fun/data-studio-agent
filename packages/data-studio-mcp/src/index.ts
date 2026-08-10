@@ -156,7 +156,6 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
       const detail = err instanceof Error ? err.message : String(err);
       return {
         contents: [{ uri: request.params.uri, mimeType: 'text/plain', text: `Error: ${detail}` }],
-        isError: true,
       };
     }
   });

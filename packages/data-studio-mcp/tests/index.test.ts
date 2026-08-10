@@ -433,6 +433,110 @@ describe('buildServer', () => {
     expect(read.contents[0].text).toContain('users');
   });
 
+  it('R1b: MongoDB schema resource uses list_databases + list_collections', async () => {
+    const clientStub: BackendClient = {
+      name: 'dockit',
+      baseUrl: 'http://127.0.0.1:9120',
+      listTools: async () => ({
+        tools: [],
+        connections: [{ id: '1', name: 'local-mongo', type: 'MongoDB' }],
+      }),
+      invokeTool: async (name: string) => {
+        if (name === 'mongo__list_databases') {
+          return {
+            status: 200,
+            data: { status: 200, data: { databases: ['mydb', 'testdb'] } },
+          };
+        }
+        if (name === 'mongo__list_collections') {
+          return {
+            status: 200,
+            data: { status: 200, data: { collections: ['users', 'orders'] } },
+          };
+        }
+        return { status: 200, data: '' };
+      },
+    };
+    const snapshot = makeSnapshot({
+      clients: new Map([['dockit', clientStub]]),
+      connections: {
+        dockit: [{ backend: 'dockit', id: '1', name: 'local-mongo', type: 'MongoDB' }],
+      },
+      statuses: [
+        {
+          name: 'dockit',
+          port: 9120,
+          baseUrl: 'http://127.0.0.1:9120',
+          status: 'connected',
+          toolCount: 0,
+          hint: 'Connected',
+        },
+      ],
+    });
+    const { client } = await connectPair(buildServer(makeOpts({ snapshot })));
+
+    const read = await client.readResource({
+      uri: 'data-studio://dockit/1/schema',
+    });
+    expect(read.contents[0].text).toContain('mydb');
+    expect(read.contents[0].text).toContain('Collection: users');
+  });
+
+  it('R1c: DynamoDB schema resource uses list_tables + describe_table', async () => {
+    const clientStub: BackendClient = {
+      name: 'dockit',
+      baseUrl: 'http://127.0.0.1:9120',
+      listTools: async () => ({
+        tools: [],
+        connections: [{ id: '1', name: 'local-dynamo', type: 'DynamoDB' }],
+      }),
+      invokeTool: async (name: string) => {
+        if (name === 'dynamo__list_tables') {
+          return {
+            status: 200,
+            data: { status: 200, data: { tableNames: ['users', 'orders'] } },
+          };
+        }
+        if (name === 'dynamo__describe_table') {
+          return {
+            status: 200,
+            data: {
+              status: 200,
+              data: {
+                name: 'users',
+                attributeDefinitions: [{ attributeName: 'id', attributeType: 'S' }],
+              },
+            },
+          };
+        }
+        return { status: 200, data: '' };
+      },
+    };
+    const snapshot = makeSnapshot({
+      clients: new Map([['dockit', clientStub]]),
+      connections: {
+        dockit: [{ backend: 'dockit', id: '1', name: 'local-dynamo', type: 'DynamoDB' }],
+      },
+      statuses: [
+        {
+          name: 'dockit',
+          port: 9120,
+          baseUrl: 'http://127.0.0.1:9120',
+          status: 'connected',
+          toolCount: 0,
+          hint: 'Connected',
+        },
+      ],
+    });
+    const { client } = await connectPair(buildServer(makeOpts({ snapshot })));
+
+    const read = await client.readResource({
+      uri: 'data-studio://dockit/1/schema',
+    });
+    expect(read.contents[0].text).toContain('Table: users');
+    expect(read.contents[0].text).toContain('id: S');
+  });
+
   it('R2: exposes resource templates and prompts', async () => {
     const { client } = await connectPair(buildServer(makeOpts()));
 

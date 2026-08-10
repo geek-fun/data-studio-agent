@@ -31,6 +31,7 @@ export class BackendRegistry {
   private statuses: readonly BackendStatus[] = [];
   private connections: Record<string, MergedConnection[]> = {};
   private signature = '';
+  private connSignature = '';
   private refreshing = false;
 
   onToolsChanged: ((snapshot: RegistrySnapshot) => void) | null = null;
@@ -95,11 +96,22 @@ export class BackendRegistry {
       .map(t => t.name)
       .sort()
       .join(',');
-    const changed = signature !== this.signature;
+    const connSignature = Object.entries(this.connections)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(
+        ([backend, conns]) =>
+          `${backend}:${conns
+            .map(c => c.id)
+            .sort()
+            .join('|')}`,
+      )
+      .join(',');
+    const changed = signature !== this.signature || connSignature !== this.connSignature;
     if (changed) {
       this.tools = tools;
       this.routeMap = routeMap;
       this.signature = signature;
+      this.connSignature = connSignature;
       this.onToolsChanged?.(this.snapshot());
     }
     return changed;
