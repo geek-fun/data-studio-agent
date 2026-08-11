@@ -1,7 +1,7 @@
 {
   "name": "@geek-fun/data-studio-mcp",
   "mcpName": "io.github.geek-fun/data-studio",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "description": "Unified MCP server for SQL (PostgreSQL, MySQL, SQL Server, SQLite) and NoSQL (Elasticsearch, MongoDB, DynamoDB) — powered by dockit and sqlkit desktop apps",
   "keywords": [
     "mcp",
