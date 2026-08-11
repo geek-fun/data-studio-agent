@@ -135,12 +135,13 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
     return {
       clients: snapshot.clients,
       statuses: snapshot.statuses,
+      connections: snapshot.connections,
     };
   };
 
   server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    const { clients, statuses } = snapshotForResources();
-    return { resources: await listResources(clients, statuses) };
+    const { statuses, connections } = snapshotForResources();
+    return { resources: await listResources(statuses, connections) };
   });
 
   server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => {
@@ -148,8 +149,15 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
   });
 
   server.setRequestHandler(ReadResourceRequestSchema, async request => {
-    const { clients } = snapshotForResources();
-    return readResource(request.params.uri, clients);
+    const { clients, connections } = snapshotForResources();
+    try {
+      return await readResource(request.params.uri, clients, connections);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return {
+        contents: [{ uri: request.params.uri, mimeType: 'text/plain', text: `Error: ${detail}` }],
+      };
+    }
   });
 
   server.setRequestHandler(ListPromptsRequestSchema, async () => {
@@ -166,7 +174,11 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
   });
 
   server.setRequestHandler(CompleteRequestSchema, async request => {
-    return completeArgument(request.params, getSnapshot());
+    try {
+      return await completeArgument(request.params, getSnapshot());
+    } catch {
+      return { completion: { values: [] } };
+    }
   });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -303,9 +315,8 @@ export const main = async (): Promise<void> => {
   await server.connect(transport);
 
   registry.onToolsChanged = () => {
-    server.sendToolListChanged().catch(() => {
-      // session may be closing — notification is best-effort
-    });
+    server.sendToolListChanged().catch(() => {});
+    server.sendResourceListChanged().catch(() => {});
   };
 
   if (connectedCount === 0) {
