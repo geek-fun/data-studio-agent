@@ -137,8 +137,8 @@ MCP 服务器是一个轻量的路由层。所有数据库驱动、SSH 隧道和
 
 | 工具 | 后端 | 风险 | 所需权限 | 用户确认 |
 |---|---|---|---|---|
-| `data_studio__list_connections` | Server | 🟢 安全 | 只读 | 否 |
-| `data_studio__get_status` | Server | 🟢 安全 | 只读 | 否 |
+| `data_studio__list_connections` | 服务器 | 🟢 安全 | 只读 | 否 |
+| `data_studio__get_status` | 服务器 | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__list_databases` | sqlkit | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__list_schemas` | sqlkit | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__list_tables` | sqlkit | 🟢 安全 | 只读 | 否 |
@@ -156,12 +156,12 @@ MCP 服务器是一个轻量的路由层。所有数据库驱动、SSH 隧道和
 | `data_studio__sqlkit__list_sessions` | sqlkit | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__get_slow_queries` | sqlkit | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__list_connections` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__get_object_ddl` | sqlkit | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__execute_write` | sqlkit | 🟡 提升 | 数据读写 | 否 |
 | `data_studio__sqlkit__kill_session` | sqlkit | 🟡 提升 | 数据读写 | 否 |
 | `data_studio__sqlkit__grant_privilege` | sqlkit | 🟡 提升 | 数据读写 | 否 |
 | `data_studio__sqlkit__revoke_privilege` | sqlkit | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__get_object_ddl` | sqlkit | 🟢 安全 | 只读 | 否 |
 | `data_studio__sqlkit__execute_delete` | sqlkit | 🔴 破坏性 | 完全访问 | 是 |
 | `data_studio__sqlkit__execute_ddl` | sqlkit | 🔴 破坏性 | 完全访问 | 是 |
 | `data_studio__es__search` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
