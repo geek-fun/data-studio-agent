@@ -179,12 +179,12 @@ All tools follow the `data_studio__{backend}__{action}` convention. The **User c
 | `data_studio__sqlkit__list_sessions` | sqlkit | 🟢 Safe | Read Only | No |
 | `data_studio__sqlkit__get_slow_queries` | sqlkit | 🟢 Safe | Read Only | No |
 | `data_studio__sqlkit__list_connections` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__get_object_ddl` | sqlkit | 🟢 Safe | Read Only | No |
 | `data_studio__sqlkit__execute_write` | sqlkit | 🟡 Elevated | Data Read-Write | No |
 | `data_studio__sqlkit__kill_session` | sqlkit | 🟡 Elevated | Data Read-Write | No |
 | `data_studio__sqlkit__grant_privilege` | sqlkit | 🟡 Elevated | Data Read-Write | No |
 | `data_studio__sqlkit__revoke_privilege` | sqlkit | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__get_object_ddl` | sqlkit | 🟢 Safe | Read Only | No |
 | `data_studio__sqlkit__execute_delete` | sqlkit | 🔴 Destructive | Full Access | Yes |
 | `data_studio__sqlkit__execute_ddl` | sqlkit | 🔴 Destructive | Full Access | Yes |
 | `data_studio__es__search` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
