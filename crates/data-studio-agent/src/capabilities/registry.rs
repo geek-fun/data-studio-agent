@@ -244,6 +244,25 @@ mod tests {
     }
 
     #[test]
+    fn test_matching_sources_searchengine_matches_es_family() {
+        let mut reg = CapabilityRegistry::new();
+        reg.register(make_cap("es_tool", SourceKind::SearchEngine, &["agent"]));
+
+        let elasticsearch = reg.matching_sources(&["ELASTICSEARCH".to_string()]);
+        assert_eq!(elasticsearch.len(), 1);
+        assert_eq!(elasticsearch[0].name, "es_tool");
+
+        let opensearch = reg.matching_sources(&["OPENSEARCH".to_string()]);
+        assert_eq!(opensearch.len(), 1);
+
+        let easysearch = reg.matching_sources(&["EASYSEARCH".to_string()]);
+        assert_eq!(easysearch.len(), 1);
+
+        let mongo = reg.matching_sources(&["MONGODB".to_string()]);
+        assert_eq!(mongo.len(), 0);
+    }
+
+    #[test]
     #[should_panic(expected = "Duplicate capability registration")]
     fn test_register_duplicate_panics() {
         let mut reg = CapabilityRegistry::new();

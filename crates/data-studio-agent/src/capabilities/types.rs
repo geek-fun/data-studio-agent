@@ -23,6 +23,9 @@ pub enum SourceKind {
     Database(&'static str),
     /// Matches any SQL database type (PostgreSQL, MySQL, SQL Server, SQLite, ClickHouse, etc.)
     SqlDatabase,
+    /// Matches any Elasticsearch-API-compatible search engine
+    /// (Elasticsearch, OpenSearch, EasySearch, etc.)
+    SearchEngine,
     /// Reads from local files — no connection config needed
     File,
     /// Reads local application state — always available
@@ -45,6 +48,10 @@ impl SourceKind {
                     | "MARIADB"
                     | "TIDB"
                     | "COCKROACHDB"
+            ),
+            SourceKind::SearchEngine => matches!(
+                db_type.to_uppercase().as_str(),
+                "ELASTICSEARCH" | "OPENSEARCH" | "EASYSEARCH"
             ),
             _ => false,
         }
