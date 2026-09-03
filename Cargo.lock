@@ -255,7 +255,7 @@ dependencies = [
 
 [[package]]
 name = "data-studio-agent"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "async-openai",
  "async-trait",

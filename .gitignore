@@ -82,6 +82,7 @@ $RECYCLE.BIN/
 # OpenCode internal state
 .omo/
 .codegraph/
+.playwright-mcp/
 
 # Temporary files
 /tmp/
