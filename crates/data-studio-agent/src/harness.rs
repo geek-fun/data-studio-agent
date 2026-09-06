@@ -20,7 +20,9 @@ use async_openai::{
 use futures::StreamExt;
 use serde_json::{json, Value};
 
-use crate::{common::http_client::create_http_client, provider_adapter};
+use crate::{
+    common::http_client::create_http_client, common::sse::drain_event_blocks, provider_adapter,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -160,18 +162,16 @@ async fn run_anthropic_stream(
 
     // Read streaming response — accumulate content, ignore tool calls for now
     let mut stream = response.bytes_stream();
-    let mut buf = String::new();
+    let mut buf: Vec<u8> = Vec::new();
     let mut full_content = String::new();
 
     while let Some(chunk) = stream.next().await {
         let bytes = chunk.map_err(|e| format!("Stream error: {}", e))?;
-        let s = String::from_utf8_lossy(&bytes);
-        buf.push_str(&s);
+        buf.extend_from_slice(&bytes);
 
-        while let Some(pos) = buf.find("\n\n") {
-            let event_block = buf[..pos].to_string();
-            buf.drain(..pos + 2);
-
+        // Decode only complete \n\n-terminated blocks. A network chunk can
+        // split a multi-byte UTF-8 char; decoding per chunk would corrupt it.
+        drain_event_blocks(&mut buf, &mut |event_block: &str| {
             for line in event_block.lines() {
                 let line = line.trim();
                 if !line.starts_with("data:") {
@@ -191,7 +191,8 @@ async fn run_anthropic_stream(
                     }
                 }
             }
-        }
+            true
+        });
     }
 
     Ok(json!({
