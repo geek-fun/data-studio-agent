@@ -25,6 +25,7 @@ use crate::{
         AnthropicChatFormatter, ChatFormatter, LlmMessage, LlmToolCall, OpenAIChatFormatter,
     },
     common::http_client::create_http_client,
+    common::sse::drain_event_blocks,
     compact::{
         count_projected_tokens, evaluate, filter_to_post_boundary, resolve_model_spec_for_session,
         run_compact_manual,
@@ -401,17 +402,15 @@ async fn stream_chat<E: EventEmitter>(
         }
 
         let mut acc = StreamAccumulator::default();
-        let mut buf = String::new();
+        let mut buf: Vec<u8> = Vec::new();
         let mut stream = resp.bytes_stream();
         while let Some(chunk) = stream.next().await {
             let bytes = chunk.map_err(|e| format!("Stream chunk error: {}", e))?;
-            let s = String::from_utf8_lossy(&bytes);
-            buf.push_str(&s);
+            buf.extend_from_slice(&bytes);
 
-            while let Some(pos) = buf.find("\n\n") {
-                let event_block = buf[..pos].to_string();
-                buf.drain(..pos + 2);
-
+            // Decode only complete \n\n-terminated blocks. A network chunk can
+            // split a multi-byte UTF-8 char; decoding per chunk would corrupt it.
+            let done = !drain_event_blocks(&mut buf, &mut |event_block: &str| {
                 for line in event_block.lines() {
                     let line = line.trim();
                     if !line.starts_with("data:") {
@@ -419,7 +418,7 @@ async fn stream_chat<E: EventEmitter>(
                     }
                     let data = line[5..].trim();
                     if data == "[DONE]" {
-                        return Ok(acc);
+                        return false;
                     }
                     let delta = match formatter.parse_chunk(data) {
                         Ok(d) => d,
@@ -465,6 +464,10 @@ async fn stream_chat<E: EventEmitter>(
                         acc.finish_reason = reason.clone();
                     }
                 }
+                true
+            });
+            if done {
+                return Ok(acc);
             }
         }
         return Ok(acc);
