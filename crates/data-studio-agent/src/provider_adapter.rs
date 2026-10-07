@@ -92,18 +92,27 @@ fn local_models_extractor(payload: &Value) -> Vec<String> {
 // Public API
 // ---------------------------------------------------------------------------
 
-/// Strip trailing slashes and ensure a `/v1` suffix.
+/// Strip trailing slashes and ensure a `/v1` suffix, unless the URL already
+/// carries its own version segment (`/v1`, `/v3/compat`, `/v1beta/openai`).
 pub fn normalize_base_url(url: &str) -> String {
     let trimmed = url.trim();
     if trimmed.is_empty() {
         return trimmed.to_string();
     }
     let without_slashes = trimmed.trim_end_matches('/');
-    if without_slashes.ends_with("/v1") {
+    if without_slashes.ends_with("/v1") || has_version_segment(without_slashes) {
         without_slashes.to_string()
     } else {
         format!("{}/v1", without_slashes)
     }
+}
+
+/// True when any path segment looks like an API version (`v1`, `v3`, `v1beta`).
+/// Scheme and host are skipped so `v2.example.com` or a port never match.
+fn has_version_segment(url: &str) -> bool {
+    url.split("://").nth(1).unwrap_or(url).split('/').skip(1).any(|seg| {
+        seg.strip_prefix('v').is_some_and(|rest| rest.starts_with(|c: char| c.is_ascii_digit()))
+    })
 }
 
 pub fn get_base_url(settings: &Value) -> String {
@@ -201,6 +210,41 @@ mod tests {
         assert_eq!(normalize_base_url("https://api.openai.com/v1"), "https://api.openai.com/v1");
         assert_eq!(normalize_base_url(""), "");
         assert_eq!(normalize_base_url("  "), "");
+    }
+
+    #[test]
+    fn test_normalize_base_url_keeps_own_version_segment() {
+        assert_eq!(
+            normalize_base_url("https://api.opper.ai/v3/compat"),
+            "https://api.opper.ai/v3/compat"
+        );
+        assert_eq!(
+            normalize_base_url("https://generativelanguage.googleapis.com/v1beta/openai"),
+            "https://generativelanguage.googleapis.com/v1beta/openai"
+        );
+        assert_eq!(
+            normalize_base_url("https://api.anthropic.com/v1beta1"),
+            "https://api.anthropic.com/v1beta1"
+        );
+    }
+
+    #[test]
+    fn test_normalize_base_url_appends_v1_without_version() {
+        assert_eq!(
+            normalize_base_url("https://gw.example.com/team"),
+            "https://gw.example.com/team/v1"
+        );
+        assert_eq!(normalize_base_url("http://127.0.0.1:11434"), "http://127.0.0.1:11434/v1");
+        assert_eq!(normalize_base_url("https://v2.example.com"), "https://v2.example.com/v1");
+    }
+
+    #[test]
+    fn test_get_base_url_explicit_versioned() {
+        let s = json!({
+            "apiCompatibility": "openai-compatible",
+            "baseUrl": "https://api.opper.ai/v3/compat"
+        });
+        assert_eq!(get_base_url(&s), "https://api.opper.ai/v3/compat");
     }
 
     #[test]
