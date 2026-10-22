@@ -6,13 +6,13 @@ Shared Rust agent framework extracted from [dockit](https://github.com/geek-fun/
 
 ```toml
 [dependencies]
-data-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v0.1.4" }
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", rev = "<full-commit-sha>" }
 ```
 
-Opt out of SQLite if you provide your own `SessionStore`:
+Replace `<full-commit-sha>` with a revision containing the host hooks documented below. Opt out of SQLite if you provide your own `SessionStore`:
 
 ```toml
-data-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v0.1.4", default-features = false }
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", rev = "<full-commit-sha>", default-features = false }
 ```
 
 ## Project structure
@@ -129,11 +129,18 @@ pub async fn run_agent_loop(
     let cancel_map = app.state::<CancelMap>().inner().clone();
     let executor = app.state::<Arc<dyn lib::ToolExecutor>>().inner().clone();
 
+    let is_parallel_ok = |name: &str| {
+        lib::capabilities::registry::registry().get(name)
+            .map(|cap| cap.parallel_ok).unwrap_or(false)
+    };
+    // Authorization is enforced by the host hooks and final execution gate.
+    let legacy_deny_hook = |_: &str, _: Option<&str>| false;
     lib::loop_runner::run_agent_loop(
         &session_id, &user_message, &settings,
         &store, &emitter, executor.as_ref(),
         connections, fallback,
         &confirm_map, &cancel_map,
+        &is_parallel_ok, &legacy_deny_hook,
     ).await
 }
 ```
@@ -157,29 +164,76 @@ pub async fn run_agent_loop(
 
 ### 4. Implement ToolExecutor
 
+Implement both `prepare` and `execute_checked` when authorization can change while a call waits for approval. The existing `execute` method remains required for compatibility; delegate it to `execute_checked` so direct use also revalidates access.
+
+The [compilable adapter example](examples/host_executor.rs) leaves policy and dispatch in the application through `HostAccess`. Inspection returns `Err` for denial or whether confirmation is required. Its implementation is:
+
 ```rust
-use data_studio_agent::tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
-
-pub struct MyToolExecutor;
-
 #[async_trait]
-impl ToolExecutor for MyToolExecutor {
-    async fn execute(
-        &self, tool_name: &str, arguments: &Value, connection_config: &Value,
-    ) -> Result<ToolEnvelope, String> {
-        let start = std::time::Instant::now();
-        let raw = crate::capabilities::registry::invoke_capability_inner(
-            tool_name, arguments.clone(), as_opt(connection_config),
-        ).await?;
-        let duration_ms = start.elapsed().as_millis() as u64;
-        Ok(ToolEnvelope {
-            summary: truncate(&raw, 4096),
-            full_result: truncate(&raw, 32768),
-            metadata: ToolResultMetadata { tool_name: tool_name.into(), duration_ms, truncated: raw.len() > 32768 },
+impl<H: HostAccess> ToolExecutor for HostExecutor<H> {
+    fn prepare(
+        &self,
+        tool: &str,
+        args: &Value,
+        original: &Value,
+        _connections: &HashMap<String, Value>,
+    ) -> Result<ToolCallPreparation, String> {
+        let requires_confirmation = self.host.inspect(tool, args, original)?;
+        Ok(ToolCallPreparation {
+            connection_config: json!({
+                "connection": original,
+                "presented_confirmation": requires_confirmation,
+            }),
+            risk_level: None,
+            confirmation_required: Some(requires_confirmation),
         })
+    }
+
+    async fn execute_checked(
+        &self,
+        tool: &str,
+        args: &Value,
+        prepared: &Value,
+    ) -> Result<ToolEnvelope, ToolExecutionError> {
+        let original = prepared
+            .get("connection")
+            .ok_or_else(|| ToolExecutionError::Denied("Missing host preparation context".into()))?;
+        let requires_confirmation =
+            self.host.inspect(tool, args, original).map_err(ToolExecutionError::Denied)?;
+        let presented = prepared["presented_confirmation"].as_bool().unwrap_or(false);
+        if requires_confirmation && !presented {
+            return Err(ToolExecutionError::ConfirmationRequired);
+        }
+        self.host.dispatch(tool, args, original, presented).await
+    }
+
+    async fn execute(
+        &self,
+        tool: &str,
+        args: &Value,
+        prepared: &Value,
+    ) -> Result<ToolEnvelope, String> {
+        self.execute_checked(tool, args, prepared).await.map_err(|error| error.to_string())
     }
 }
 ```
+
+The host owns authorization; the runtime owns confirmation and retry orchestration:
+
+| Outcome | Runtime behavior |
+|---------|------------------|
+| `prepare` returns `Err` | Persist denial; do not emit a confirmation event or execute |
+| `Denied(message)` | Stop immediately; no retries or further confirmation |
+| `Failed(message)` | Retry execution up to three failed attempts (two retries) |
+| `ConfirmationRequired` | Re-run `prepare` with the original resolved config, emit a new tool-call event, and await approval |
+
+Each tool call permits at most three confirmation renewals, independently of transport retries. A fourth renewal request terminates with a failure, without another prompt or transport retry.
+
+Every `prepare` receives the original input, so its transformation need not be idempotent. `execute_checked` receives the latest prepared context only after approval and must recheck current permissions and source scope on every attempt. Capture the confirmation requirements presented to the user in that context; they describe what was presented, not proof of approval or an authorization grant. Return `ConfirmationRequired` only if the current allowed operation needs stricter confirmation than that captured context. Never map authorization errors through the default `From<String>` conversion: that produces retryable `Failed`; use `Denied` explicitly.
+
+The client must honor host-provided `confirmation_required` metadata and reply through the existing confirmation API. An automatic approval reply remains subject to current host authorization. Do not hold application/database locks while waiting for approval.
+
+Use a session-bound executor when authorization depends on conversation attachments. A globally registered executor is appropriate only when it carries no mutable per-session scope.
 
 ## Supported providers
 
