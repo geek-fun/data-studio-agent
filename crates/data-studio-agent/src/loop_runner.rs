@@ -34,7 +34,7 @@ use crate::{
     loop_runner_support::new_id,
     provider_adapter::{build_headers, get_base_url},
     token_counter::count_chat_messages,
-    tool_executor::{ToolEnvelope, ToolExecutionError, ToolExecutor},
+    tool_executor::{ToolCallPreparation, ToolEnvelope, ToolExecutionError, ToolExecutor},
     tools::get_tool_required_params,
     traits::{CancelMap, ConfirmMap, EventEmitter, SessionStore, StoredMessage},
 };
@@ -52,6 +52,7 @@ const TOOL_EXECUTION_TIMEOUT_SECS: u64 = 30;
 const MAX_RUNAWAY_ITERATIONS: usize = 5;
 const TOOL_RETRY_DELAYS_SECS: &[u64] = &[2, 5];
 const TOOL_MAX_ATTEMPTS: usize = 3;
+const MAX_CONFIRMATION_RENEWALS: usize = 3;
 const RETRY_JITTER_MS: u64 = 250;
 const RETRYABLE_ERROR_TYPES: &[&str] =
     &["rate_limit_exceeded", "service_unavailable", "overloaded_error"];
@@ -621,7 +622,8 @@ struct PreparedToolCall {
     assistant_message_id: String,
     tool_name: String,
     arguments: Value,
-    resolved_config: Value,
+    original_config: Value,
+    prepared_config: Value,
     parallel_ok: bool,
 }
 
@@ -1157,113 +1159,29 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 },
             };
 
-            let preparation =
-                tool_executor.prepare(&tool_name, &arguments_value, &resolved_config, &connections);
-
-            // Server-side policy gate: short-circuit Deny without awaiting user
-            if preparation.is_err() || should_deny(&tool_name, conn_id) {
-                store.update_tool_call_status(&tool_call_id, "denied").await?;
-                let deny_content = preparation.err().unwrap_or_else(|| {
-                    format!("Tool '{}' was denied by server permission policy.", tool_name)
-                });
-                let deny_msg = json!({
-                    "tool_call_id": tool_call_id,
-                    "name": tool_name,
-                    "content": deny_content,
-                });
-                inline_append(
-                    store,
-                    emitter,
-                    settings,
-                    &new_id(),
+            let Some(preparation) = prepare_and_confirm(
+                &ToolCallRequest {
+                    tool_call_id: &tool_call_id,
+                    tool_name: &tool_name,
+                    arguments: &arguments_value,
+                    connection_config: &resolved_config,
+                },
+                store,
+                settings,
+                &ToolExecutionContext {
                     session_id,
-                    "tool",
-                    &deny_msg.to_string(),
-                )
-                .await?;
-                emitter.emit(
-                    "agent-loop-tool-result",
-                    json!({
-                        "session_id": session_id,
-                        "tool_call_id": tool_call_id,
-                        "error": true,
-                        "denied": true,
-                        "tool_name": tool_name,
-                        "arguments": arguments_value,
-                        "envelope": { "summary": deny_content },
-                    }),
-                );
+                    emitter,
+                    tool_executor,
+                    connections: &connections,
+                    confirm_map,
+                },
+                &mut cancel_rx,
+                || should_deny(&tool_name, conn_id),
+            )
+            .await?
+            else {
                 continue;
-            }
-
-            // Frontend confirmation gate
-            let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
-            {
-                let mut cm = match confirm_map.lock() {
-                    Ok(c) => c,
-                    Err(e) => return Err(e.to_string()),
-                };
-                cm.insert(tool_call_id.clone(), confirm_tx);
-            }
-            let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.clone());
-
-            emitter.emit(
-                "agent-loop-tool-call",
-                json!({
-                    "session_id": session_id,
-                    "tool_call_id": tool_call_id,
-                    "tool_name": tool_name,
-                    "arguments": arguments_value,
-                    "confirmation_required": preparation.as_ref().ok().and_then(|context| context.confirmation_required),
-                    "risk_level": preparation.as_ref().ok().and_then(|context| context.risk_level)
-                        .or_else(|| crate::capabilities::registry::registry().get(&tool_name).map(|cap| cap.risk_level)),
-                }),
-            );
-
-            let resolved_config = preparation?.connection_config;
-            let confirm_future =
-                tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
-
-            let allowed = {
-                let cf = confirm_future;
-                let cancel_fut = &mut cancel_rx;
-                pin_mut!(cf);
-                pin_mut!(cancel_fut);
-                match select(cf, cancel_fut).await {
-                    Either::Left((result, _)) => match result {
-                        Ok(Ok(v)) => v,
-                        Ok(Err(_)) => false,
-                        Err(_) => {
-                            return Err(format!("tool confirmation timeout: {}", tool_call_id));
-                        },
-                    },
-                    Either::Right((_, _)) => {
-                        return Err("cancelled".to_string());
-                    },
-                }
             };
-
-            if !allowed {
-                store.update_tool_call_status(&tool_call_id, "denied").await?;
-                let tool_deny_msg = json!({
-                    "tool_call_id": tool_call_id,
-                    "name": tool_name,
-                    "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
-                });
-                inline_append(
-                    store,
-                    emitter,
-                    settings,
-                    &new_id(),
-                    session_id,
-                    "tool",
-                    &tool_deny_msg.to_string(),
-                )
-                .await?;
-                continue;
-            }
-
-            store.update_tool_call_status(&tool_call_id, "approved").await?;
 
             let parallel_ok = is_parallel_ok(&tool_name);
             prepared.push(PreparedToolCall {
@@ -1271,7 +1189,8 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 assistant_message_id: assistant_message_id.clone(),
                 tool_name: tool_name.clone(),
                 arguments: arguments_value.clone(),
-                resolved_config,
+                original_config: resolved_config,
+                prepared_config: preparation.connection_config,
                 parallel_ok,
             });
         }
@@ -1433,6 +1352,144 @@ struct ToolExecutionContext<'a, E> {
     confirm_map: &'a ConfirmMap,
 }
 
+struct ToolCallRequest<'a> {
+    tool_call_id: &'a str,
+    tool_name: &'a str,
+    arguments: &'a Value,
+    connection_config: &'a Value,
+}
+
+async fn prepare_and_confirm<S: SessionStore, E: EventEmitter>(
+    request: &ToolCallRequest<'_>,
+    store: &S,
+    settings: &Value,
+    context: &ToolExecutionContext<'_, E>,
+    cancel_rx: &mut oneshot::Receiver<()>,
+    legacy_denied: impl FnOnce() -> bool + Send,
+) -> Result<Option<ToolCallPreparation>, String> {
+    let tool_call_id = request.tool_call_id;
+    let tool_name = request.tool_name;
+    let arguments_value = request.arguments;
+    let session_id = context.session_id;
+    let emitter = context.emitter;
+    let confirm_map = context.confirm_map;
+    let preparation = context.tool_executor.prepare(
+        tool_name,
+        arguments_value,
+        request.connection_config,
+        context.connections,
+    );
+
+    // Server-side policy gate: short-circuit Deny without awaiting user
+    if preparation.is_err() || legacy_denied() {
+        store.update_tool_call_status(tool_call_id, "denied").await?;
+        let deny_content = preparation.err().unwrap_or_else(|| {
+            format!("Tool '{}' was denied by server permission policy.", tool_name)
+        });
+        let deny_msg = json!({
+            "tool_call_id": tool_call_id,
+            "name": tool_name,
+            "content": deny_content,
+        });
+        inline_append(
+            store,
+            emitter,
+            settings,
+            &new_id(),
+            session_id,
+            "tool",
+            &deny_msg.to_string(),
+        )
+        .await?;
+        emitter.emit(
+            "agent-loop-tool-result",
+            json!({
+                "session_id": session_id,
+                "tool_call_id": tool_call_id,
+                "error": true,
+                "denied": true,
+                "tool_name": tool_name,
+                "arguments": arguments_value,
+                "envelope": { "summary": deny_content },
+            }),
+        );
+        return Ok(None);
+    }
+
+    let preparation = preparation?;
+
+    // Frontend confirmation gate
+    let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
+    {
+        let mut cm = match confirm_map.lock() {
+            Ok(c) => c,
+            Err(e) => return Err(e.to_string()),
+        };
+        cm.insert(tool_call_id.to_owned(), confirm_tx);
+    }
+    let _guard = ConfirmGuard::new(confirm_map.clone(), tool_call_id.to_owned());
+
+    emitter.emit(
+        "agent-loop-tool-call",
+        json!({
+            "session_id": session_id,
+            "tool_call_id": tool_call_id,
+            "tool_name": tool_name,
+            "arguments": arguments_value,
+            "confirmation_required": preparation.confirmation_required,
+            "risk_level": preparation.risk_level.or_else(|| {
+                crate::capabilities::registry::registry().get(tool_name).map(|cap| cap.risk_level)
+            }),
+        }),
+    );
+
+    let confirm_future =
+        tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
+
+    let allowed = {
+        let cf = confirm_future;
+        let cancel_fut = &mut *cancel_rx;
+        pin_mut!(cf);
+        pin_mut!(cancel_fut);
+        match select(cf, cancel_fut).await {
+            Either::Left((result, _)) => match result {
+                Ok(Ok(v)) => v,
+                Ok(Err(_)) => false,
+                Err(_) => {
+                    return Err(format!("tool confirmation timeout: {}", tool_call_id));
+                },
+            },
+            Either::Right((_, _)) => {
+                return Err("cancelled".to_string());
+            },
+        }
+    };
+
+    if !allowed {
+        store.update_tool_call_status(tool_call_id, "denied").await?;
+        let tool_deny_msg = json!({
+            "tool_call_id": tool_call_id,
+            "name": tool_name,
+            "content": format!("Tool call '{}' was denied by the user. Try an alternative approach.", tool_name),
+        });
+        inline_append(
+            store,
+            emitter,
+            settings,
+            &new_id(),
+            session_id,
+            "tool",
+            &tool_deny_msg.to_string(),
+        )
+        .await?;
+        return Ok(None);
+    }
+
+    store.update_tool_call_status(tool_call_id, "approved").await?;
+
+    Ok(Some(preparation))
+}
+
 async fn execute_with_retry<S: SessionStore, E: EventEmitter>(
     tool: &PreparedToolCall,
     store: &S,
@@ -1443,8 +1500,9 @@ async fn execute_with_retry<S: SessionStore, E: EventEmitter>(
     let tool_executor = context.tool_executor;
     let connections = context.connections;
     let confirm_map = context.confirm_map;
-    let mut config = tool.resolved_config.clone();
+    let mut config = tool.prepared_config.clone();
     let mut attempt = 0;
+    let mut renewals = 0;
     loop {
         let result = tokio::time::timeout(
             Duration::from_secs(TOOL_EXECUTION_TIMEOUT_SECS),
@@ -1462,8 +1520,15 @@ async fn execute_with_retry<S: SessionStore, E: EventEmitter>(
         match error {
             ToolExecutionError::Denied(_) => return Err(error),
             ToolExecutionError::ConfirmationRequired => {
+                if renewals >= MAX_CONFIRMATION_RENEWALS {
+                    return Err(ToolExecutionError::Failed(format!(
+                        "Tool call exceeded the limit of {} confirmation renewals",
+                        MAX_CONFIRMATION_RENEWALS
+                    )));
+                }
+                renewals += 1;
                 let preparation = tool_executor
-                    .prepare(&tool.tool_name, &tool.arguments, &config, connections)
+                    .prepare(&tool.tool_name, &tool.arguments, &tool.original_config, connections)
                     .map_err(ToolExecutionError::Denied)?;
                 let (tx, rx) = oneshot::channel();
                 confirm_map
@@ -2199,7 +2264,8 @@ mod execution_authorization_tests {
             assistant_message_id: "message".into(),
             tool_name: "tool".into(),
             arguments: json!({}),
-            resolved_config: json!({}),
+            original_config: json!({}),
+            prepared_config: json!({}),
             parallel_ok: false,
         };
         (db, store, tool)
@@ -2350,6 +2416,245 @@ mod execution_authorization_tests {
         assert_eq!(result, Err("cancelled".into()));
         assert_eq!(executor.calls.load(Ordering::SeqCst), 1);
         assert!(confirms.lock().unwrap().is_empty());
+        let status: String = db
+            .0
+            .lock()
+            .unwrap()
+            .query_row("SELECT status FROM agent_tool_calls WHERE id='call'", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(status, "failed");
+    }
+    struct TransformingHost {
+        inputs: Mutex<Vec<Value>>,
+        calls: AtomicUsize,
+        reject: bool,
+        renewals_before_success: usize,
+    }
+    #[async_trait::async_trait]
+    impl ToolExecutor for TransformingHost {
+        fn prepare(
+            &self,
+            _: &str,
+            _: &Value,
+            config: &Value,
+            _: &HashMap<String, Value>,
+        ) -> Result<ToolCallPreparation, String> {
+            self.inputs.lock().unwrap().push(config.clone());
+            if self.reject {
+                return Err("Host rejected preparation".into());
+            }
+            let target = config
+                .get("raw_target")
+                .ok_or("Expected original config, received transformed context")?;
+            assert!(config.get("prepared_target").is_none());
+            Ok(ToolCallPreparation {
+                connection_config: json!({"prepared_target": target}),
+                risk_level: Some(crate::capabilities::types::RiskLevel::Elevated),
+                confirmation_required: Some(true),
+            })
+        }
+        async fn execute(&self, _: &str, _: &Value, _: &Value) -> Result<ToolEnvelope, String> {
+            unreachable!()
+        }
+        async fn execute_checked(
+            &self,
+            _: &str,
+            _: &Value,
+            config: &Value,
+        ) -> Result<ToolEnvelope, ToolExecutionError> {
+            assert_eq!(config, &json!({"prepared_target":"db"}));
+            let call = self.calls.fetch_add(1, Ordering::SeqCst);
+            if call < self.renewals_before_success {
+                return Err(ToolExecutionError::ConfirmationRequired);
+            }
+            Ok(ToolEnvelope {
+                summary: "done".into(),
+                full_result: "done".into(),
+                metadata: ToolResultMetadata {
+                    tool_name: "tool".into(),
+                    duration_ms: 0,
+                    truncated: false,
+                },
+            })
+        }
+    }
+
+    #[test]
+    fn initial_prepare_or_legacy_denial_never_requests_confirmation_or_executes() {
+        for reject_prepare in [true, false] {
+            let (db, store, _) = setup();
+            db.0.lock()
+                .unwrap()
+                .execute("UPDATE agent_tool_calls SET status='pending'", [])
+                .unwrap();
+            let host = TransformingHost {
+                inputs: Mutex::new(Vec::new()),
+                calls: AtomicUsize::new(0),
+                reject: reject_prepare,
+                renewals_before_success: 0,
+            };
+            let confirms = Arc::new(Mutex::new(HashMap::new()));
+            let emitter = Emitter {
+                confirms: confirms.clone(),
+                approve: true,
+                events: Mutex::new(Vec::new()),
+            };
+            let connections = HashMap::new();
+            let context = ToolExecutionContext {
+                session_id: "chat",
+                emitter: &emitter,
+                tool_executor: &host,
+                connections: &connections,
+                confirm_map: &confirms,
+            };
+            let original = json!({"raw_target":"db"});
+            let request = ToolCallRequest {
+                tool_call_id: "call",
+                tool_name: "tool",
+                arguments: &Value::Null,
+                connection_config: &original,
+            };
+            let (_cancel_tx, mut cancel_rx) = oneshot::channel();
+            let runtime =
+                tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let result = runtime
+                .block_on(prepare_and_confirm(
+                    &request,
+                    &store,
+                    &json!({}),
+                    &context,
+                    &mut cancel_rx,
+                    || !reject_prepare,
+                ))
+                .unwrap();
+            assert!(result.is_none());
+            assert_eq!(host.inputs.lock().unwrap().len(), 1);
+            assert_eq!(host.calls.load(Ordering::SeqCst), 0);
+            assert!(confirms.lock().unwrap().is_empty());
+            let events = emitter.events.lock().unwrap();
+            assert!(!events.iter().any(|(event, _)| event == "agent-loop-tool-call"));
+            assert!(events
+                .iter()
+                .any(|(event, payload)| event == "agent-loop-tool-result"
+                    && payload["denied"] == true));
+            let db = db.0.lock().unwrap();
+            let status: String = db
+                .query_row("SELECT status FROM agent_tool_calls WHERE id='call'", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            assert_eq!(status, "denied");
+            let message: String = db
+                .query_row("SELECT content FROM agent_messages WHERE role='tool'", [], |row| {
+                    row.get(0)
+                })
+                .unwrap();
+            let expected = if reject_prepare {
+                "Host rejected preparation"
+            } else {
+                "denied by server permission policy"
+            };
+            assert!(message.contains(expected));
+        }
+    }
+
+    #[test]
+    fn initial_preparation_and_every_renewal_receive_original_input() {
+        let (_, store, mut tool) = setup();
+        tool.original_config = json!({"raw_target":"db"});
+        let host = TransformingHost {
+            inputs: Mutex::new(Vec::new()),
+            calls: AtomicUsize::new(0),
+            reject: false,
+            renewals_before_success: MAX_CONFIRMATION_RENEWALS,
+        };
+        let confirms = Arc::new(Mutex::new(HashMap::new()));
+        let emitter =
+            Emitter { confirms: confirms.clone(), approve: true, events: Mutex::new(Vec::new()) };
+        let connections = HashMap::new();
+        let context = ToolExecutionContext {
+            session_id: "chat",
+            emitter: &emitter,
+            tool_executor: &host,
+            connections: &connections,
+            confirm_map: &confirms,
+        };
+        let request = ToolCallRequest {
+            tool_call_id: &tool.tool_call_id,
+            tool_name: &tool.tool_name,
+            arguments: &tool.arguments,
+            connection_config: &tool.original_config,
+        };
+        let (_cancel_tx, mut cancel_rx) = oneshot::channel();
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let preparation = runtime
+            .block_on(prepare_and_confirm(
+                &request,
+                &store,
+                &json!({}),
+                &context,
+                &mut cancel_rx,
+                || false,
+            ))
+            .unwrap()
+            .unwrap();
+        tool.prepared_config = preparation.connection_config;
+        assert!(runtime.block_on(execute_with_retry(&tool, &store, &context)).is_ok());
+        let expected_attempts = MAX_CONFIRMATION_RENEWALS + 1;
+        assert_eq!(host.calls.load(Ordering::SeqCst), expected_attempts);
+        assert_eq!(*host.inputs.lock().unwrap(), vec![tool.original_config; expected_attempts]);
+        assert_eq!(
+            emitter
+                .events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|(event, _)| event == "agent-loop-tool-call")
+                .count(),
+            expected_attempts
+        );
+        assert!(confirms.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn repeated_renewals_stop_at_the_limit_and_persist_a_terminal_failure() {
+        let (db, store, mut tool) = setup();
+        tool.original_config = json!({"raw_target":"db"});
+        tool.prepared_config = json!({"prepared_target":"db"});
+        let host = TransformingHost {
+            inputs: Mutex::new(Vec::new()),
+            calls: AtomicUsize::new(0),
+            reject: false,
+            renewals_before_success: usize::MAX,
+        };
+        let confirms = Arc::new(Mutex::new(HashMap::new()));
+        let emitter =
+            Emitter { confirms: confirms.clone(), approve: true, events: Mutex::new(Vec::new()) };
+        let connections = HashMap::new();
+        let context = ToolExecutionContext {
+            session_id: "chat",
+            emitter: &emitter,
+            tool_executor: &host,
+            connections: &connections,
+            confirm_map: &confirms,
+        };
+        let (_cancel_tx, mut cancel_rx) = oneshot::channel();
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        runtime.block_on(execute_phase2_3(vec![tool], &store, &context, &mut cancel_rx)).unwrap();
+        assert_eq!(host.calls.load(Ordering::SeqCst), MAX_CONFIRMATION_RENEWALS + 1);
+        assert_eq!(host.inputs.lock().unwrap().len(), MAX_CONFIRMATION_RENEWALS);
+        assert!(confirms.lock().unwrap().is_empty());
+        let events = emitter.events.lock().unwrap();
+        assert_eq!(
+            events.iter().filter(|(event, _)| event == "agent-loop-tool-call").count(),
+            MAX_CONFIRMATION_RENEWALS
+        );
+        assert!(!events.iter().any(|(event, _)| event == "agent-loop-tool-retry"));
+        let (_, result) =
+            events.iter().find(|(event, _)| event == "agent-loop-tool-result").unwrap();
+        assert_eq!(result["error"], true);
+        assert_eq!(result["denied"], false);
+        assert!(result["envelope"]["summary"].as_str().unwrap().contains("confirmation renewals"));
         let status: String = db
             .0
             .lock()

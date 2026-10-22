@@ -10,9 +10,9 @@ How to add the shared agent library to a new (or existing) Tauri application.
 ## Step 1: Add Dependency
 
 ```toml
-# Production — pinned to a release tag
+# Production — replace with a full commit SHA containing the API used below
 [dependencies]
-data-studio-agent = { git = "https://github.com/geekfun/data-studio-agent", tag = "v0.1.0" }
+data-studio-agent = { git = "https://github.com/geek-fun/data-studio-agent.git", rev = "<full-commit-sha>" }
 ```
 
 During local development (crate lives at `crates/data-studio-agent` in the repo):
@@ -46,7 +46,7 @@ use data_studio_agent::storage;
 
 ## Step 3: Implement ToolExecutor
 
-Create a struct that implements `data_studio_agent::tool_executor::ToolExecutor`:
+The minimal legacy adapter below implements `execute` only. It remains supported, but its string errors are treated as retryable failures. For changing permissions or source scope, also implement the host hooks shown next.
 
 ```rust
 use async_trait::async_trait;
@@ -95,6 +95,77 @@ impl ToolExecutor for MyToolExecutor {
     }
 }
 ```
+
+### Hosts with authorization and confirmation
+
+The [complete, compilable host adapter](../crates/data-studio-agent/examples/host_executor.rs) defines `HostAccess` as application-provided inspection and dispatch. `inspect` returns an error for denied access, or a boolean indicating whether the allowed operation requires confirmation. `dispatch` uses the application's final execution gate. This adapter intentionally transforms the original config:
+
+```rust
+#[async_trait]
+impl<H: HostAccess> ToolExecutor for HostExecutor<H> {
+    fn prepare(
+        &self,
+        tool: &str,
+        args: &Value,
+        original: &Value,
+        _connections: &HashMap<String, Value>,
+    ) -> Result<ToolCallPreparation, String> {
+        let requires_confirmation = self.host.inspect(tool, args, original)?;
+        Ok(ToolCallPreparation {
+            connection_config: json!({
+                "connection": original,
+                "presented_confirmation": requires_confirmation,
+            }),
+            risk_level: None,
+            confirmation_required: Some(requires_confirmation),
+        })
+    }
+
+    async fn execute_checked(
+        &self,
+        tool: &str,
+        args: &Value,
+        prepared: &Value,
+    ) -> Result<ToolEnvelope, ToolExecutionError> {
+        let original = prepared
+            .get("connection")
+            .ok_or_else(|| ToolExecutionError::Denied("Missing host preparation context".into()))?;
+        let requires_confirmation =
+            self.host.inspect(tool, args, original).map_err(ToolExecutionError::Denied)?;
+        let presented = prepared["presented_confirmation"].as_bool().unwrap_or(false);
+        if requires_confirmation && !presented {
+            return Err(ToolExecutionError::ConfirmationRequired);
+        }
+        self.host.dispatch(tool, args, original, presented).await
+    }
+
+    async fn execute(
+        &self,
+        tool: &str,
+        args: &Value,
+        prepared: &Value,
+    ) -> Result<ToolEnvelope, String> {
+        self.execute_checked(tool, args, prepared).await.map_err(|error| error.to_string())
+    }
+}
+```
+
+The host owns authorization; the runtime owns confirmation and retry orchestration:
+
+| Outcome | Runtime behavior |
+|---------|------------------|
+| `prepare` returns `Err` | Persist denial; do not emit a confirmation event or execute |
+| `Denied(message)` | Stop immediately; no retries or further confirmation |
+| `Failed(message)` | Retry execution up to three failed attempts (two retries) |
+| `ConfirmationRequired` | Re-run `prepare` with the original resolved config, emit a new tool-call event, and await approval |
+
+Each tool call permits at most three confirmation renewals, independently of transport retries. A fourth renewal request terminates with a failure, without another prompt or transport retry.
+
+Every `prepare` receives the original input, so its transformation need not be idempotent. `execute_checked` receives the latest prepared context only after approval and must recheck current permissions and source scope on every attempt. Capture the confirmation requirements presented to the user in that context; they describe what was presented, not proof of approval or an authorization grant. Return `ConfirmationRequired` only if the current allowed operation needs stricter confirmation than that captured context. Never map authorization errors through the default `From<String>` conversion: that produces retryable `Failed`; use `Denied` explicitly.
+
+The client must honor host-provided `confirmation_required` metadata and reply through the existing confirmation API. An automatic approval reply remains subject to current host authorization. Do not hold application/database locks while waiting for approval.
+
+Use a session-bound executor when authorization depends on conversation attachments. A globally registered executor is appropriate only when it carries no mutable per-session scope.
 
 Register it in setup:
 
@@ -150,11 +221,18 @@ pub async fn run_agent_loop(
         .unwrap_or_default();
     let fallback = settings.get("connectionConfig").cloned().unwrap_or(Value::Null);
 
+    let is_parallel_ok = |name: &str| {
+        lib::capabilities::registry::registry().get(name)
+            .map(|cap| cap.parallel_ok).unwrap_or(false)
+    };
+    // Authorization is enforced by the host hooks and final execution gate.
+    let legacy_deny_hook = |_: &str, _: Option<&str>| false;
     lib::loop_runner::run_agent_loop(
         &session_id, &user_message, &settings,
         &store, &emitter, executor.as_ref(),
         connections, fallback,
         &confirm_map, &cancel_map,
+        &is_parallel_ok, &legacy_deny_hook,
     ).await
 }
 

@@ -19,4 +19,6 @@ pub mod storage;
 // Re-exports for convenience
 pub use chat_formatter::ChatFormatter;
 pub use provider_adapter::{build_headers, get_base_url, map_to_api_compatibility};
-pub use tool_executor::{ToolEnvelope, ToolExecutor, ToolResultMetadata};
+pub use tool_executor::{
+    ToolCallPreparation, ToolEnvelope, ToolExecutionError, ToolExecutor, ToolResultMetadata,
+};
