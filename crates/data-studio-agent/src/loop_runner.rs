@@ -1106,40 +1106,53 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                     },
                 },
                 None => {
-                    if !connections.is_empty() {
-                        store.update_tool_call_status(&tool_call_id, "failed").await?;
-                        let err_content = format!(
+                    let connectionless = crate::capabilities::registry::registry()
+                        .get(&tool_name)
+                        .is_some_and(|cap| {
+                            matches!(
+                                cap.source_kind,
+                                crate::capabilities::types::SourceKind::AppLocal
+                                    | crate::capabilities::types::SourceKind::File
+                            )
+                        });
+                    if connectionless {
+                        json!({"__allowed_connection_ids": connections.values().filter_map(|cfg| cfg.get("connectionId").and_then(Value::as_str)).collect::<Vec<_>>()})
+                    } else {
+                        if !connections.is_empty() {
+                            store.update_tool_call_status(&tool_call_id, "failed").await?;
+                            let err_content = format!(
                             "Tool '{}' requires a connection_id argument. Available connections: {}.",
                             tool_name,
                             connections.keys().cloned().collect::<Vec<_>>().join(", ")
                         );
-                        let err_msg = json!({
-                            "tool_call_id": tool_call_id,
-                            "name": tool_name,
-                            "content": err_content,
-                        });
-                        inline_append(
-                            store,
-                            emitter,
-                            settings,
-                            &new_id(),
-                            session_id,
-                            "tool",
-                            &err_msg.to_string(),
-                        )
-                        .await?;
-                        emitter.emit(
-                            "agent-loop-tool-result",
-                            json!({
-                                "session_id": session_id,
+                            let err_msg = json!({
                                 "tool_call_id": tool_call_id,
-                                "error": true,
-                                "envelope": { "summary": err_content },
-                            }),
-                        );
-                        continue;
+                                "name": tool_name,
+                                "content": err_content,
+                            });
+                            inline_append(
+                                store,
+                                emitter,
+                                settings,
+                                &new_id(),
+                                session_id,
+                                "tool",
+                                &err_msg.to_string(),
+                            )
+                            .await?;
+                            emitter.emit(
+                                "agent-loop-tool-result",
+                                json!({
+                                    "session_id": session_id,
+                                    "tool_call_id": tool_call_id,
+                                    "error": true,
+                                    "envelope": { "summary": err_content },
+                                }),
+                            );
+                            continue;
+                        }
+                        fallback_connection_config.clone()
                     }
-                    fallback_connection_config.clone()
                 },
             };
 
@@ -1161,6 +1174,12 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                     "tool_call_id": tool_call_id,
                     "tool_name": tool_name,
                     "arguments": arguments_value,
+                    "risk_level": crate::capabilities::registry::registry().get(&tool_name).map(|cap| {
+                        let actions = crate::capabilities::permissions::required_permissions(cap, &arguments_value).unwrap_or_default();
+                        if actions.contains(&crate::capabilities::permissions::Permission::Delete) || actions.contains(&crate::capabilities::permissions::Permission::Manage) {
+                            crate::capabilities::types::RiskLevel::Destructive
+                        } else { cap.risk_level }
+                    }),
                 }),
             );
 
