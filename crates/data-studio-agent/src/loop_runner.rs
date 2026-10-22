@@ -1116,7 +1116,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                             )
                         });
                     if connectionless {
-                        json!({"__allowed_connection_ids": connections.values().filter_map(|cfg| cfg.get("connectionId").and_then(Value::as_str)).collect::<Vec<_>>()})
+                        Value::Null
                     } else {
                         if !connections.is_empty() {
                             store.update_tool_call_status(&tool_call_id, "failed").await?;
@@ -1156,6 +1156,9 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 },
             };
 
+            let preparation =
+                tool_executor.prepare(&tool_name, &arguments_value, &resolved_config, &connections);
+
             // Frontend confirmation gate
             let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
             {
@@ -1174,20 +1177,17 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                     "tool_call_id": tool_call_id,
                     "tool_name": tool_name,
                     "arguments": arguments_value,
-                    "risk_level": crate::capabilities::registry::registry().get(&tool_name).map(|cap| {
-                        let actions = crate::capabilities::permissions::required_permissions(cap, &arguments_value).unwrap_or_default();
-                        if actions.contains(&crate::capabilities::permissions::Permission::Delete) || actions.contains(&crate::capabilities::permissions::Permission::Manage) {
-                            crate::capabilities::types::RiskLevel::Destructive
-                        } else { cap.risk_level }
-                    }),
+                    "risk_level": preparation.as_ref().ok().and_then(|context| context.risk_level)
+                        .or_else(|| crate::capabilities::registry::registry().get(&tool_name).map(|cap| cap.risk_level)),
                 }),
             );
 
             // Server-side policy gate: short-circuit Deny without awaiting user
-            if should_deny(&tool_name, conn_id) {
+            if preparation.is_err() || should_deny(&tool_name, conn_id) {
                 store.update_tool_call_status(&tool_call_id, "denied").await?;
-                let deny_content =
-                    format!("Tool '{}' was denied by server permission policy.", tool_name);
+                let deny_content = preparation.err().unwrap_or_else(|| {
+                    format!("Tool '{}' was denied by server permission policy.", tool_name)
+                });
                 let deny_msg = json!({
                     "tool_call_id": tool_call_id,
                     "name": tool_name,
@@ -1215,6 +1215,7 @@ async fn run_agent_loop_inner<S: SessionStore, E: EventEmitter>(
                 continue;
             }
 
+            let resolved_config = preparation?.connection_config;
             let confirm_future =
                 tokio::time::timeout(Duration::from_secs(CONFIRM_TIMEOUT_SECS), confirm_rx);
 

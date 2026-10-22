@@ -1,6 +1,3 @@
-mod chain;
-pub use chain::{required_permissions, Permission, PermissionRules};
-
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -80,10 +77,6 @@ impl McpAction {
 /// MCP permission policy, stored per app and read by the bridge on every request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct McpPolicy {
-    #[serde(default)]
-    pub permission_defaults: Option<PermissionRules>,
-    #[serde(default)]
-    pub connection_permissions: HashMap<String, PermissionRules>,
     pub mode: McpPermissionMode,
     /// Empty = all connections allowed; non-empty = only listed connection IDs
     pub allowed_connection_ids: Vec<String>,
@@ -103,8 +96,6 @@ fn default_confirm_destructive() -> bool {
 impl Default for McpPolicy {
     fn default() -> Self {
         Self {
-            permission_defaults: None,
-            connection_permissions: HashMap::new(),
             mode: McpPermissionMode::DataReadWrite,
             allowed_connection_ids: Vec::new(),
             connection_overrides: HashMap::new(),
@@ -115,21 +106,11 @@ impl Default for McpPolicy {
 
 impl McpPolicy {
     pub fn is_connection_allowed(&self, connection_id: &str) -> bool {
-        if self.permission_defaults.is_some() {
-            return self.effective_permissions(connection_id).any_allowed();
-        }
         self.allowed_connection_ids.is_empty()
             || self.allowed_connection_ids.iter().any(|id| id == connection_id)
     }
 
     pub fn is_connection_read_only(&self, connection_id: &str) -> bool {
-        if self.permission_defaults.is_some() {
-            let rules = self.effective_permissions(connection_id);
-            return rules.read == Some(true)
-                && [rules.create, rules.update, rules.delete, rules.manage]
-                    .iter()
-                    .all(|v| *v != Some(true));
-        }
         self.connection_overrides.get(connection_id).is_some_and(|o| o.read_only)
     }
 
@@ -153,23 +134,6 @@ impl McpPolicy {
 
     /// Decide the policy action for a capability and connection.
     pub fn decide(&self, risk_level: RiskLevel, connection_id: Option<&str>) -> PolicyAction {
-        if self.permission_defaults.is_some() {
-            let rules = self.effective_permissions(connection_id.unwrap_or("__inherited__"));
-            let allowed = match risk_level {
-                RiskLevel::Safe => rules.read == Some(true),
-                RiskLevel::Elevated => {
-                    [rules.create, rules.update, rules.manage].contains(&Some(true))
-                },
-                RiskLevel::Destructive => [rules.delete, rules.manage].contains(&Some(true)),
-            };
-            return if !allowed {
-                PolicyAction::Deny
-            } else if matches!(risk_level, RiskLevel::Destructive) {
-                PolicyAction::Ask
-            } else {
-                PolicyAction::Allow
-            };
-        }
         if let Some(id) = connection_id {
             if !self.is_connection_allowed(id) {
                 return PolicyAction::Deny;
@@ -199,13 +163,6 @@ impl McpPolicy {
         risk_level: RiskLevel,
         connection_id: Option<&str>,
     ) -> Option<String> {
-        if self.permission_defaults.is_some() {
-            return if self.allows(risk_level, connection_id) {
-                None
-            } else {
-                Some("Access denied by the resolved AI permission chain".into())
-            };
-        }
         if let Some(id) = connection_id {
             if !self.is_connection_allowed(id) {
                 return Some(format!(
@@ -241,9 +198,6 @@ impl McpPolicy {
     /// clients (LLMs) learn what is gated and how to lift the gate without
     /// calling hidden tools (mirrors Neon MCP's read-only notice).
     pub fn policy_notice(&self) -> Option<String> {
-        if self.permission_defaults.is_some() {
-            return Some("AI permissions are resolved per action: explicit connection decisions take priority over system defaults. Conversation restrictions can only narrow access.".into());
-        }
         let mut parts: Vec<String> = Vec::new();
         if !self.mode.allows(RiskLevel::Destructive) || !self.confirm_destructive {
             parts.push(
@@ -372,7 +326,6 @@ mod tests {
                 ConnectionMcpOverride { read_only: true, allowed_actions: None },
             )]
             .into(),
-            ..McpPolicy::default()
         };
         assert_eq!(
             policy.deny_reason(RiskLevel::Safe, Some("conn-2")),
@@ -445,7 +398,6 @@ mod tests {
                 ConnectionMcpOverride { read_only: true, allowed_actions: None },
             )]),
             confirm_destructive: false,
-            ..McpPolicy::default()
         };
         let v = serde_json::to_value(&policy).unwrap();
         assert_eq!(v["mode"], "DataReadWrite");
