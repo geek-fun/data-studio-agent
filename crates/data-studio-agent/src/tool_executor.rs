@@ -25,6 +25,30 @@ pub struct ToolEnvelope {
 pub struct ToolCallPreparation {
     pub connection_config: Value,
     pub risk_level: Option<RiskLevel>,
+    pub confirmation_required: Option<bool>,
+}
+
+/// Execution outcomes that must not be treated as transient transport failures.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ToolExecutionError {
+    Failed(String),
+    Denied(String),
+    ConfirmationRequired,
+}
+
+impl std::fmt::Display for ToolExecutionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Failed(message) | Self::Denied(message) => f.write_str(message),
+            Self::ConfirmationRequired => f.write_str("Confirmation requirements changed"),
+        }
+    }
+}
+
+impl From<String> for ToolExecutionError {
+    fn from(message: String) -> Self {
+        Self::Failed(message)
+    }
 }
 
 /// Application-provided trait for executing tool calls.
@@ -40,7 +64,22 @@ pub trait ToolExecutor: Send + Sync {
         connection_config: &Value,
         _connections: &HashMap<String, Value>,
     ) -> Result<ToolCallPreparation, String> {
-        Ok(ToolCallPreparation { connection_config: connection_config.clone(), risk_level: None })
+        Ok(ToolCallPreparation {
+            connection_config: connection_config.clone(),
+            risk_level: None,
+            confirmation_required: None,
+        })
+    }
+
+    /// Hosts enforce current authorization here on every attempt. Older executors
+    /// retain their existing string-error behavior through the default adapter.
+    async fn execute_checked(
+        &self,
+        tool_name: &str,
+        arguments: &Value,
+        connection_config: &Value,
+    ) -> Result<ToolEnvelope, ToolExecutionError> {
+        self.execute(tool_name, arguments, connection_config).await.map_err(Into::into)
     }
 
     async fn execute(
