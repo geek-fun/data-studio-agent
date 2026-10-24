@@ -3,16 +3,13 @@ use data_studio_agent::{ToolCallPreparation, ToolEnvelope, ToolExecutionError, T
 use serde_json::{json, Value};
 use std::collections::HashMap;
 
-/// Implement this boundary in the application with its current policy and source scope.
 #[async_trait]
 pub trait HostAccess: Send + Sync {
-    /// Return `Err` for denied access, or whether the allowed call needs confirmation.
-    /// Read current app policy and source scope; do not execute the operation.
+    /// Check current policy and source scope without execution; return confirmation needs or denial.
     fn inspect(&self, tool: &str, args: &Value, connection: &Value) -> Result<bool, String>;
 
-    /// Resolve credentials and dispatch using the application's execution gate.
-    /// If resolution awaits, revalidate authorization and confirmation requirements
-    /// at dispatch. Use the typed outcomes before executing if either changed.
+    /// Resolve credentials, then revalidate authorization and confirmation at dispatch,
+    /// including after any await. Return typed outcomes before executing if either changed.
     async fn dispatch(
         &self,
         tool: &str,

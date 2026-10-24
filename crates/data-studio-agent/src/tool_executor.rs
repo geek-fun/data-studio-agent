@@ -21,18 +21,13 @@ pub struct ToolEnvelope {
 }
 
 /// Trusted execution context and confirmation metadata supplied by the host application.
-///
-/// The runtime uses this context only after receiving approval. Preparation metadata
-/// describes the requirements presented for approval; it is not proof of approval
-/// and must never override a later authorization denial.
 #[derive(Debug, Clone)]
 pub struct ToolCallPreparation {
-    /// Context passed to execution after approval. Hosts may transform the original
-    /// connection config and capture the confirmation requirements in this value.
+    /// Context passed to execution after approval. Capture presented confirmation
+    /// requirements here; they are not an authorization grant or proof of approval.
     pub connection_config: Value,
     pub risk_level: Option<RiskLevel>,
     /// Host confirmation requirement; `None` preserves the client's existing rules.
-    /// This flag is not an authorization grant or a record of user approval.
     pub confirmation_required: Option<bool>,
 }
 
@@ -42,19 +37,13 @@ pub struct ToolCallPreparation {
 /// failures must explicitly use [`Self::Denied`] to avoid transport retries.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ToolExecutionError {
-    /// Retryable transport/execution failure: at most three failed attempts
-    /// (two retries). The runtime also returns this when a retry or renewal limit
-    /// is exhausted; that final result is terminal for the tool call.
+    /// Retryable transport/execution failure (three attempts total).
+    /// Also returned as a terminal result when a retry or renewal limit is exhausted.
     Failed(String),
     /// Terminal refusal: no execution retry and no further confirmation request.
     Denied(String),
-    /// Pause execution, call `prepare` again with the original resolved config,
-    /// emit a new tool-call event, and await approval before another attempt.
-    ///
-    /// The next prepared config must capture the newly presented confirmation
-    /// requirements so the host can recognize them on the next execution check.
-    /// Preparation itself does not approve the call. The runtime allows at most
-    /// three renewals per tool call, independently of transport retry attempts.
+    /// Re-prepare, emit a new tool-call event, and await renewed approval.
+    /// At most three renewals per tool call, independently of transport retries.
     ConfirmationRequired,
 }
 
@@ -77,17 +66,11 @@ impl From<String> for ToolExecutionError {
 /// Each app implements this trait, wiring its own capability registry.
 #[async_trait]
 pub trait ToolExecutor: Send + Sync {
-    /// Inspect a request before confirmation, without executing it.
+    /// Inspect current policy before confirmation, without executing the request.
     ///
-    /// `Err` is a terminal denial: the runtime persists it without emitting a
-    /// confirmation event or invoking execution. `Ok` supplies the context and
-    /// requirements the runtime will present for approval.
-    ///
-    /// Every call, including confirmation renewals, receives the original resolved
-    /// `connection_config`, never a previous preparation's output. Hosts may
-    /// transform it without requiring that transformation to be idempotent.
-    /// Re-read current policy and capture applicable confirmation requirements in
-    /// the returned config, rather than treating preparation as authorization.
+    /// `Err` is a terminal denial without a confirmation event or execution.
+    /// Always receives the original resolved config, including confirmation renewals.
+    /// Return the context and confirmation requirements to present for approval.
     fn prepare(
         &self,
         _tool_name: &str,
@@ -102,19 +85,14 @@ pub trait ToolExecutor: Send + Sync {
         })
     }
 
-    /// Called on every execution attempt, including transport retries and attempts
-    /// after renewed approval, with the latest approved preparation's context.
+    /// Called on every attempt, including retries and renewed approvals, with the
+    /// latest approved preparation's context. Revalidate authorization and source
+    /// scope at dispatch; return `Denied` for forbidden access without executing.
     ///
-    /// Hosts must revalidate current authorization and source scope here before
-    /// dispatch. Return `Denied` for revoked/forbidden access. If access is allowed
-    /// but current confirmation requirements exceed those captured in the prepared
-    /// context, return `ConfirmationRequired` without executing the operation.
-    /// Once the new context has been approved, do not request the same renewal
-    /// again unless the requirements changed again.
+    /// Return `ConfirmationRequired` without executing only when current confirmation
+    /// requirements exceed those captured in the context, avoiding repeated prompts.
     ///
-    /// The default delegates to `execute` and maps every string error to retryable
-    /// `Failed`. Hosts enforcing permissions should override this method and use
-    /// explicit error variants; approval never bypasses authorization.
+    /// The default delegates to `execute`; hosts enforcing permissions must override it.
     async fn execute_checked(
         &self,
         tool_name: &str,
