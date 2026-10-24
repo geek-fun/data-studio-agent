@@ -1380,7 +1380,6 @@ async fn prepare_and_confirm<S: SessionStore, E: EventEmitter>(
         context.connections,
     );
 
-    // Server-side policy gate: short-circuit Deny without awaiting user
     if preparation.is_err() || legacy_denied() {
         store.update_tool_call_status(tool_call_id, "denied").await?;
         let deny_content = preparation.err().unwrap_or_else(|| {
@@ -1418,7 +1417,6 @@ async fn prepare_and_confirm<S: SessionStore, E: EventEmitter>(
 
     let preparation = preparation?;
 
-    // Frontend confirmation gate
     let (confirm_tx, confirm_rx) = oneshot::channel::<bool>();
     {
         let mut cm = match confirm_map.lock() {
