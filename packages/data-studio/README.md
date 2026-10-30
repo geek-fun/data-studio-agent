@@ -2,7 +2,7 @@
 
 **Let your AI coding agent securely access all your databases, in plain language.**
 
-A ZCode plugin that bundles the [Data Studio MCP server](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) (`data_studio__*` tools, 116 total) with agent usage guidance.
+A ZCode plugin that bundles the [Data Studio MCP server](https://www.npmjs.com/package/@geek-fun/data-studio-mcp) (`data_studio__*` tools, 117 total) with agent usage guidance.
 
 - **SQL** (via [sqlkit](https://github.com/geek-fun/sqlkit)): 70+ databases — PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake, BigQuery, and more.
 - **NoSQL** (via [dockit](https://github.com/geek-fun/dockit)): Elasticsearch, OpenSearch, MongoDB, DynamoDB.
@@ -18,7 +18,7 @@ A ZCode plugin that bundles the [Data Studio MCP server](https://www.npmjs.com/p
 | Item | Detail |
 |---|---|
 | MCP server | One stdio server: `npx -y @geek-fun/data-studio-mcp` (npm package `@geek-fun/data-studio-mcp`) |
-| Network access | `127.0.0.1` only — talks to the dockit/sqlkit local bridges (ports 9120/9121). npm registry access during the first `npx` download. No other endpoints; no telemetry. |
+| Network access | `127.0.0.1` only: talks to the dockit/sqlkit local bridges (ports 9120/9121). npm registry access during the first `npx` download. No other endpoints; no telemetry. |
 | Credentials | Never collected, stored, or transmitted. The LLM only sees opaque `connection_id`s; real credentials are resolved inside the desktop apps. |
 | Command execution | Spawns the MCP server process (Node.js). No shell scripts, no hooks. |
 | File writes | None by the plugin itself. |
@@ -26,9 +26,9 @@ A ZCode plugin that bundles the [Data Studio MCP server](https://www.npmjs.com/p
 
 ## Security model
 
-- **Credentials never leave the desktop apps.** Tools accept `connection_id` only.
-- **Three-tier permissions** (configured in dockit/sqlkit): Read Only / Data Read-Write / Full Access.
-- **Destructive operations** (DELETE, DROP, TRUNCATE) always surface an explicit confirmation prompt in the client.
+- Credentials never leave the desktop apps: tools accept `connection_id` only.
+- Three-tier permissions, configured in dockit/sqlkit: Read Only / Data Read-Write / Full Access.
+- Destructive operations (DELETE, DROP, TRUNCATE) always surface an explicit confirmation prompt in the client.
 
 ## License
 
@@ -40,7 +40,7 @@ Apache 2.0. See [LICENSE](../../../LICENSE) in the repository root.
 
 **让 AI 编码助手用自然语言安全地访问你的所有数据库。**
 
-本插件打包了 [Data Studio MCP server](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)(116 个 `data_studio__*` 工具)与 agent 使用指引。
+本插件打包了 [Data Studio MCP server](https://www.npmjs.com/package/@geek-fun/data-studio-mcp)(117 个 `data_studio__*` 工具)与 agent 使用指引。
 
 - **SQL**(经 [sqlkit](https://github.com/geek-fun/sqlkit)):70+ 种数据库 — PostgreSQL、MySQL、SQL Server、Oracle、SQLite、DuckDB、ClickHouse、Snowflake、BigQuery 等。
 - **NoSQL**(经 [dockit](https://github.com/geek-fun/dockit)):Elasticsearch、OpenSearch、MongoDB、DynamoDB。
@@ -56,7 +56,7 @@ Apache 2.0. See [LICENSE](../../../LICENSE) in the repository root.
 | 项目 | 说明 |
 |---|---|
 | MCP server | 一个 stdio server:`npx -y @geek-fun/data-studio-mcp`(npm 包 `@geek-fun/data-studio-mcp`) |
-| 网络访问 | 仅 `127.0.0.1` — 与 dockit/sqlkit 本地 bridge 通信(端口 9120/9121);首次 `npx` 下载会访问 npm registry;无其他端点,无遥测 |
+| 网络访问 | 仅 `127.0.0.1`,与 dockit/sqlkit 本地 bridge 通信(端口 9120/9121);首次 `npx` 下载会访问 npm registry;无其他端点,无遥测 |
 | 凭据 | 不收集、不存储、不传输;LLM 只能看到不透明的 `connection_id`,真实凭据在桌面应用内部解析 |
 | 命令执行 | 仅启动 MCP server 进程(Node.js);无 shell 脚本,无 hooks |
 | 文件写入 | 插件本身不写入任何文件 |
@@ -64,6 +64,6 @@ Apache 2.0. See [LICENSE](../../../LICENSE) in the repository root.
 
 ## 安全模型
 
-- **凭据永不离开桌面应用**:工具只接受 `connection_id`。
-- **三级权限**(在 dockit/sqlkit 中配置):Read Only / Data Read-Write / Full Access。
-- **破坏性操作**(DELETE、DROP、TRUNCATE)始终在客户端弹出显式确认。
+- 凭据永不离开桌面应用:工具只接受 `connection_id`。
+- 三级权限,在 dockit/sqlkit 中配置:Read Only / Data Read-Write / Full Access。
+- 破坏性操作(DELETE、DROP、TRUNCATE)始终在客户端弹出显式确认。

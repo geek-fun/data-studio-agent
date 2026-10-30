@@ -12,12 +12,12 @@ MCP tools prefixed `data_studio__*` route to the user's local [dockit](https://g
 - dockit and/or sqlkit installed and running, with at least one database connection added.
 - **Settings → MCP Bridge → Auto-start** enabled in the desktop apps (on by default).
 
-If tools fail to connect, tell the user to launch the desktop apps and check Settings → MCP Bridge. Never ask the user for credentials — real credentials are resolved inside the apps; tools only ever accept an opaque `connection_id`.
+If tools fail to connect, tell the user to launch the desktop apps and check Settings → MCP Bridge. Never ask the user for credentials: real credentials are resolved inside the apps, and tools only ever accept an opaque `connection_id`.
 
 ## Workflow
 
 1. Start with `data_studio__list_connections` (or `data_studio__get_status`) to discover running backends and connection IDs. These two tools have no app segment; all others are four-segment names.
-2. Route by app + backend — tool names follow `data_studio__{app}__{backend}__{action}`:
+2. Route by app + backend; tool names follow `data_studio__{app}__{backend}__{action}`:
    - SQL databases: `data_studio__sqlkit__sqlkit__*` (e.g. `data_studio__sqlkit__sqlkit__execute_query`)
    - Elasticsearch/OpenSearch: `data_studio__dockit__es__*`
    - MongoDB: `data_studio__dockit__mongo__*`
@@ -40,4 +40,4 @@ Before any destructive call, state exactly what will be deleted or dropped and w
 
 - 84+ tools across the backends. Prefer the most specific tool: `explain_query` for plan analysis, `get_slow_queries` for performance troubleshooting, `es__count` before broad `search` calls.
 - Results are capped. Use limit/pagination arguments for large datasets instead of unbounded scans.
-- Prefer read-only tools unless the user explicitly asks for changes; write tools are a deliberate step, not a shortcut.
+- Prefer read-only tools unless the user explicitly asks for changes.
