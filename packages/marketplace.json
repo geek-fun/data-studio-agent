@@ -23,7 +23,8 @@
         "mongodb",
         "dynamodb",
         "mcp"
-      ]
+      ],
+      "icon": "https://raw.githubusercontent.com/geek-fun/data-studio-agent/master/docs/images/data-studio-agent-icon.png"
     }
   ]
 }
