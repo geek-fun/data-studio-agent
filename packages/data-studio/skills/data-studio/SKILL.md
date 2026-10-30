@@ -1,6 +1,6 @@
 ---
 name: data-studio
-description: Query and explore the user's databases through the data_studio__* MCP tools — 70+ SQL databases (PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake and more) via SqlKit, plus Elasticsearch, OpenSearch, MongoDB and DynamoDB via DocKit. Use when the user asks to list tables or schemas, run SQL or queries, inspect indexes/mappings/collections, analyze or visualize stored data, troubleshoot slow queries, or mentions 数据库/查询/表结构/索引/集合. Credentials stay inside the desktop apps; tools take a connection_id only.
+description: Query and explore the user's databases through the data_studio__* MCP tools: 70+ SQL databases (PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake and more) via SqlKit, plus Elasticsearch, OpenSearch, MongoDB and DynamoDB via DocKit. Use when the user asks to list tables or schemas, run SQL or queries, inspect indexes/mappings/collections, analyze or visualize stored data, troubleshoot slow queries, or mentions 数据库/查询/表结构/索引/集合. Credentials stay inside the desktop apps; tools take a connection_id only. Requires dockit and/or sqlkit running locally with the MCP bridge enabled.
 ---
 
 # Data Studio
@@ -38,6 +38,6 @@ Before any destructive call, state exactly what will be deleted or dropped and w
 
 ## Conventions
 
-- 84+ tools across the backends. Prefer the most specific tool: `explain_query` for plan analysis, `get_slow_queries` for performance troubleshooting, `es__count` before broad `search` calls.
+- The documented matrix is 117 tools; the runtime set depends on the apps' permission mode and configured connections. Prefer the most specific tool: `explain_query` for plan analysis, `get_slow_queries` for performance troubleshooting, `es__count` before broad `search` calls.
 - Results are capped. Use limit/pagination arguments for large datasets instead of unbounded scans.
 - Prefer read-only tools unless the user explicitly asks for changes.
