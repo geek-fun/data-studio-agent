@@ -1,0 +1,16 @@
+{
+  "name": "data-studio",
+  "version": "0.1.12",
+  "description": "Secure database access for AI agents via the data_studio__* MCP tools — 70+ SQL databases through SqlKit, Elasticsearch/OpenSearch/MongoDB/DynamoDB through DocKit. Credentials never leave your desktop apps.",
+  "author": {
+    "name": "GeekFun",
+    "url": "https://github.com/geek-fun"
+  },
+  "skills": "./skills",
+  "mcpServers": {
+    "data-studio": {
+      "command": "npx",
+      "args": ["-y", "@geek-fun/data-studio-mcp"]
+    }
+  }
+}
