@@ -121,6 +121,21 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 }
 ```
 
+**DeepSeek Harness。** 将以下 overlay 保存为 `data-studio.cordis.yml`：
+
+```yaml
+- insert:
+    - id: data-studio-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: data-studio
+        transport: stdio
+        command: npx
+        args: ['-y', '@geek-fun/data-studio-mcp']
+```
+
+启动时执行 `dsh web --patch "$PWD/data-studio.cordis.yml"`，或将 `insert` 补丁合并进 `$DSH_HOME/cordis.patch.yml` 以持久生效。工具名为 `mcp__data-studio__*`（DSH 处于开发者预览阶段，配置形态可能变化）。
+
 **任何其他 MCP 客户端。** 注册一个 stdio 服务器，命令 `npx`，参数 `-y @geek-fun/data-studio-mcp`。
 
 ### 4. 调整权限（可选）

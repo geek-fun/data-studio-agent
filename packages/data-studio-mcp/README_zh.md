@@ -85,6 +85,23 @@ npx -y @geek-fun/data-studio-mcp
 | 命令 (Command) | `npx` |
 | 参数 (Args) | `-y @geek-fun/data-studio-mcp` |
 
+### DeepSeek Harness
+
+将以下 overlay 保存为 `data-studio.cordis.yml`，启动时执行 `dsh web --patch "$PWD/data-studio.cordis.yml"`：
+
+```yaml
+- insert:
+    - id: data-studio-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: data-studio
+        transport: stdio
+        command: npx
+        args: ['-y', '@geek-fun/data-studio-mcp']
+```
+
+要跨会话保留，将 `insert` 补丁合并进 `$DSH_HOME/cordis.patch.yml`。工具名为 `mcp__data-studio__*`。
+
 ## 使用方法
 
 连接成功后，直接用自然语言提问即可。AI 助手会为你调用数据库工具：

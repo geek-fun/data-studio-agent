@@ -121,6 +121,21 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 }
 ```
 
+**DeepSeek Harness.** Save the overlay as `data-studio.cordis.yml`:
+
+```yaml
+- insert:
+    - id: data-studio-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: data-studio
+        transport: stdio
+        command: npx
+        args: ['-y', '@geek-fun/data-studio-mcp']
+```
+
+Run `dsh web --patch "$PWD/data-studio.cordis.yml"`, or merge the `insert` patch into `$DSH_HOME/cordis.patch.yml` to keep it across runs. Tools appear as `mcp__data-studio__*` (DSH is developer preview — its config surface may change).
+
 **Any other MCP client.** Register a stdio server with command `npx` and args `-y @geek-fun/data-studio-mcp`.
 
 ### 4. Tune permissions (optional)

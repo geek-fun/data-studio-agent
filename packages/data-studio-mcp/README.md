@@ -85,6 +85,23 @@ Add a new MCP server:
 | Command | `npx` |
 | Args | `-y @geek-fun/data-studio-mcp` |
 
+### DeepSeek Harness
+
+Save the overlay as `data-studio.cordis.yml`, then run `dsh web --patch "$PWD/data-studio.cordis.yml"`:
+
+```yaml
+- insert:
+    - id: data-studio-mcp
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: data-studio
+        transport: stdio
+        command: npx
+        args: ['-y', '@geek-fun/data-studio-mcp']
+```
+
+To keep it across runs, merge the `insert` patch into `$DSH_HOME/cordis.patch.yml`. Tools appear as `mcp__data-studio__*`.
+
 ## Usage
 
 Once connected, just ask in plain language. The agent calls the database tools for you:
