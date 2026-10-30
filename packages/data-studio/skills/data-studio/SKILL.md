@@ -1,6 +1,15 @@
 ---
 name: data-studio
-description: Query and explore the user's databases through the data_studio__* MCP tools: 70+ SQL databases (PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB, ClickHouse, Snowflake and more) via SqlKit, plus Elasticsearch, OpenSearch, MongoDB and DynamoDB via DocKit. Use when the user asks to list tables or schemas, run SQL or queries, inspect indexes/mappings/collections, analyze or visualize stored data, troubleshoot slow queries, or mentions 数据库/查询/表结构/索引/集合. Credentials stay inside the desktop apps; tools take a connection_id only. Requires dockit and/or sqlkit running locally with the MCP bridge enabled.
+description: >-
+  Query and explore the user's databases through the data_studio__* MCP tools:
+  70+ SQL databases (PostgreSQL, MySQL, SQL Server, Oracle, SQLite, DuckDB,
+  ClickHouse, Snowflake and more) via SqlKit, plus Elasticsearch, OpenSearch,
+  MongoDB and DynamoDB via DocKit. Use when the user asks to list tables or
+  schemas, run SQL or queries, inspect indexes/mappings/collections, analyze or
+  visualize stored data, troubleshoot slow queries, or mentions
+  数据库/查询/表结构/索引/集合. Credentials stay inside the desktop apps; tools
+  take a connection_id only. Requires dockit and/or sqlkit running locally with
+  the MCP bridge enabled.
 ---
 
 # Data Studio
