@@ -157,127 +157,130 @@ LLM 能对你的数据做很多事，但它永远看不到你的凭据。策略�
 
 ## 工具参考
 
-所有工具遵循 `data_studio__{backend}__{action}` 命名规则。**用户确认**列标明哪些操作会在你的 AI 客户端中弹出显式确认提示。
+所有工具遵循 `data_studio__{app}__{backend}__{action}` 命名规则:**app** 是暴露桥接的桌面应用(`sqlkit` 或 `dockit`),**backend** 是其背后的数据源(`sqlkit`、`es`、`mongo`、`dynamo`)。两个服务器级工具(`data_studio__list_connections`、`data_studio__get_status`)没有 app 段。**用户确认**列标明哪些操作会在你的 AI 客户端中弹出显式确认提示。
+
+运行时实际暴露的工具集合取决于应用的权限模式与已配置的连接——调用 `data_studio__get_status` 可查看当前可用工具。
 
 | 工具 | 后端 | 风险 | 所需权限 | 用户确认 |
 |---|---|---|---|---|
 | `data_studio__list_connections` | 服务器 | 🟢 安全 | 只读 | 否 |
 | `data_studio__get_status` | 服务器 | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_databases` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_schemas` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_tables` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__get_schema` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__describe_table` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__explain_query` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_indexes` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_foreign_keys` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_views` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_procedures` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_functions` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_triggers` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__get_table_info` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__get_foreign_keys` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_sessions` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__get_slow_queries` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__list_connections` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__get_object_ddl` | sqlkit | 🟢 安全 | 只读 | 否 |
-| `data_studio__sqlkit__execute_write` | sqlkit | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__sqlkit__kill_session` | sqlkit | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__sqlkit__grant_privilege` | sqlkit | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__sqlkit__revoke_privilege` | sqlkit | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__sqlkit__execute_delete` | sqlkit | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__sqlkit__execute_ddl` | sqlkit | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__es__search` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__get_document` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__cat_indices` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__get_mapping` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__cat_aliases` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__get_alias` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__count` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__cluster_health` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__cat_nodes` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__cat_shards` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__list_snapshots` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
-| `data_studio__es__index_document` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__update_document` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__create_index` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__put_mapping` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__put_alias` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__update_aliases` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__bulk` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__reindex` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__restore_snapshot` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__es__delete_document` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__es__delete_by_query` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__es__delete_index` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__es__delete_alias` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__mongo__list_databases` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__list_collections` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__find` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__collection_stats` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__database_stats` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__server_status` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__repl_set_status` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__shard_status` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__count_documents` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__list_indexes` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__sample_documents` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__distinct` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__get_slow_queries` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__list_users` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__mongo__aggregate` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__insert_one` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__update_many` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__create_database` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__create_collection` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__update_document` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__rename_collection` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__clone_collection` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__create_index` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__drop_index` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__insert_many` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__find_one_and_update` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__bulk_write` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__mongo__delete_many` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__mongo__drop_database` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__mongo__drop_collection` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__mongo__delete_document` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__mongo__truncate_collection` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__dynamo__execute_query` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__describe_table` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__list_tables` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__query_table` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__scan_table` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__batch_get_items` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__describe_continuous_backups` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__describe_ttl` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__get_table_metrics` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__list_backups` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__describe_backup` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__describe_limits` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__list_tags` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
-| `data_studio__dynamo__execute_write` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__create_item` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__batch_write_items` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__update_item` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__transact_write_items` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__create_gsi` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__update_gsi` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__create_table` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__update_table_config` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__update_ttl` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__update_pitr` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__update_streams` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__restore_table` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__create_backup` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__tag_resource` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
-| `data_studio__dynamo__execute_delete` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__dynamo__delete_item` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__dynamo__delete_gsi` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__dynamo__delete_table` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
-| `data_studio__dynamo__truncate_table` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
-**共 116 个工具。** 只读操作在**只读**模式下自动运行。提升操作（写入、索引/schema 变更）需要**数据读写**权限。破坏性操作（DELETE、DROP、TRUNCATE）需要**完全访问**权限，并始终弹出显式**用户确认**提示。
+| `data_studio__dockit__dockit__list_connections` | dockit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_databases` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_schemas` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_tables` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__get_schema` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__describe_table` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__explain_query` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_indexes` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_foreign_keys` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_views` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_procedures` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_functions` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_triggers` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__get_table_info` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__get_foreign_keys` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_sessions` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__get_slow_queries` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__list_connections` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__execute_query` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__get_object_ddl` | sqlkit | 🟢 安全 | 只读 | 否 |
+| `data_studio__sqlkit__sqlkit__execute_write` | sqlkit | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__sqlkit__sqlkit__kill_session` | sqlkit | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__sqlkit__sqlkit__grant_privilege` | sqlkit | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__sqlkit__sqlkit__revoke_privilege` | sqlkit | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__sqlkit__sqlkit__execute_delete` | sqlkit | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__sqlkit__sqlkit__execute_ddl` | sqlkit | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__es__search` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__get_document` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__cat_indices` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__get_mapping` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__cat_aliases` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__get_alias` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__count` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__cluster_health` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__cat_nodes` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__cat_shards` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__list_snapshots` | dockit · Elasticsearch | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__es__index_document` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__update_document` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__create_index` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__put_mapping` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__put_alias` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__update_aliases` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__bulk` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__reindex` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__restore_snapshot` | dockit · Elasticsearch | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__es__delete_document` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__es__delete_by_query` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__es__delete_index` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__es__delete_alias` | dockit · Elasticsearch | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__mongo__list_databases` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__list_collections` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__find` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__collection_stats` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__database_stats` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__server_status` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__repl_set_status` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__shard_status` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__count_documents` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__list_indexes` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__sample_documents` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__distinct` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__get_slow_queries` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__list_users` | dockit · MongoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__mongo__aggregate` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__insert_one` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__update_many` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__create_database` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__create_collection` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__update_document` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__rename_collection` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__clone_collection` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__create_index` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__drop_index` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__insert_many` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__find_one_and_update` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__bulk_write` | dockit · MongoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__mongo__delete_many` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__mongo__drop_database` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__mongo__drop_collection` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__mongo__delete_document` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__mongo__truncate_collection` | dockit · MongoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__dynamo__execute_query` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__describe_table` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__list_tables` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__query_table` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__scan_table` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__batch_get_items` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__describe_continuous_backups` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__describe_ttl` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__get_table_metrics` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__list_backups` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__describe_backup` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__describe_limits` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__list_tags` | dockit · DynamoDB | 🟢 安全 | 只读 | 否 |
+| `data_studio__dockit__dynamo__execute_write` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__create_item` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__batch_write_items` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__update_item` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__transact_write_items` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__create_gsi` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__update_gsi` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__create_table` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__update_table_config` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__update_ttl` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__update_pitr` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__update_streams` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__restore_table` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__create_backup` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__tag_resource` | dockit · DynamoDB | 🟡 提升 | 数据读写 | 否 |
+| `data_studio__dockit__dynamo__execute_delete` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__dynamo__delete_item` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__dynamo__delete_gsi` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__dynamo__delete_table` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
+| `data_studio__dockit__dynamo__truncate_table` | dockit · DynamoDB | 🔴 破坏性 | 完全访问 | 是 |
+**共 117 个工具。** 只读操作在**只读**模式下自动运行。提升操作（写入、索引/schema 变更）需要**数据读写**权限。破坏性操作（DELETE、DROP、TRUNCATE）需要**完全访问**权限，并始终弹出显式**用户确认**提示。
 
 ## 工作原理
 
