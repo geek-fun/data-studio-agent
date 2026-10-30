@@ -133,127 +133,130 @@ The MCP server is a thin routing layer. All database drivers, SSH tunnels, and c
 
 ## Tools
 
-All tools follow the `data_studio__{backend}__{action}` convention. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run.
+All tools follow the `data_studio__{app}__{backend}__{action}` convention: **app** is the desktop app exposing the bridge (`sqlkit` or `dockit`), and **backend** is the data source behind it (`sqlkit`, `es`, `mongo`, `dynamo`). The two server-level tools (`data_studio__list_connections`, `data_studio__get_status`) have no app segment. The **User confirmation** column shows which operations surface an explicit confirmation prompt in your AI client before they run.
+
+The exact tool set advertised at runtime depends on your apps' permission mode and configured connections — call `data_studio__get_status` to see what is currently available.
 
 | Tool | Backend | Risk | Requires permission | User confirmation |
 |---|---|---|---|---|
 | `data_studio__list_connections` | Server | 🟢 Safe | Read Only | No |
 | `data_studio__get_status` | Server | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_databases` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_schemas` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_tables` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__get_schema` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__describe_table` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__explain_query` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_indexes` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_foreign_keys` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_views` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_procedures` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_functions` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_triggers` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__get_table_info` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__get_foreign_keys` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_sessions` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__get_slow_queries` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__list_connections` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__execute_query` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__get_object_ddl` | sqlkit | 🟢 Safe | Read Only | No |
-| `data_studio__sqlkit__execute_write` | sqlkit | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__sqlkit__kill_session` | sqlkit | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__sqlkit__grant_privilege` | sqlkit | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__sqlkit__revoke_privilege` | sqlkit | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__sqlkit__execute_delete` | sqlkit | 🔴 Destructive | Full Access | Yes |
-| `data_studio__sqlkit__execute_ddl` | sqlkit | 🔴 Destructive | Full Access | Yes |
-| `data_studio__es__search` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__get_document` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__cat_indices` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__get_mapping` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__cat_aliases` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__get_alias` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__count` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__cluster_health` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__cat_nodes` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__cat_shards` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__list_snapshots` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
-| `data_studio__es__index_document` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__update_document` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__create_index` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__put_mapping` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__put_alias` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__update_aliases` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__bulk` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__reindex` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__restore_snapshot` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__es__delete_document` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
-| `data_studio__es__delete_by_query` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
-| `data_studio__es__delete_index` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
-| `data_studio__es__delete_alias` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
-| `data_studio__mongo__list_databases` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__list_collections` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__find` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__collection_stats` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__database_stats` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__server_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__repl_set_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__shard_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__count_documents` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__list_indexes` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__sample_documents` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__distinct` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__get_slow_queries` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__list_users` | dockit · MongoDB | 🟢 Safe | Read Only | No |
-| `data_studio__mongo__aggregate` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__insert_one` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__update_many` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__create_database` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__create_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__update_document` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__rename_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__clone_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__create_index` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__drop_index` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__insert_many` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__find_one_and_update` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__bulk_write` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__mongo__delete_many` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__mongo__drop_database` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__mongo__drop_collection` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__mongo__delete_document` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__mongo__truncate_collection` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__dynamo__execute_query` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__describe_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__list_tables` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__query_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__scan_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__batch_get_items` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__describe_continuous_backups` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__describe_ttl` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__get_table_metrics` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__list_backups` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__describe_backup` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__describe_limits` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__list_tags` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
-| `data_studio__dynamo__execute_write` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__create_item` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__batch_write_items` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__update_item` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__transact_write_items` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__create_gsi` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__update_gsi` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__create_table` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__update_table_config` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__update_ttl` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__update_pitr` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__update_streams` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__restore_table` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__create_backup` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__tag_resource` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
-| `data_studio__dynamo__execute_delete` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__dynamo__delete_item` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__dynamo__delete_gsi` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__dynamo__delete_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
-| `data_studio__dynamo__truncate_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
-**116 tools total.** Read-only operations run automatically under **Read Only** mode. Elevated operations (writes, index/schema changes) require **Data Read-Write**. Destructive operations (DELETE, DROP, TRUNCATE) require **Full Access** and always surface an explicit **user confirmation** prompt.
+| `data_studio__dockit__dockit__list_connections` | dockit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_databases` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_schemas` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_tables` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__get_schema` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__describe_table` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__explain_query` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_indexes` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_foreign_keys` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_views` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_procedures` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_functions` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_triggers` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__get_table_info` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__get_foreign_keys` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_sessions` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__get_slow_queries` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__list_connections` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__execute_query` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__get_object_ddl` | sqlkit | 🟢 Safe | Read Only | No |
+| `data_studio__sqlkit__sqlkit__execute_write` | sqlkit | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__sqlkit__sqlkit__kill_session` | sqlkit | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__sqlkit__sqlkit__grant_privilege` | sqlkit | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__sqlkit__sqlkit__revoke_privilege` | sqlkit | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__sqlkit__sqlkit__execute_delete` | sqlkit | 🔴 Destructive | Full Access | Yes |
+| `data_studio__sqlkit__sqlkit__execute_ddl` | sqlkit | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__es__search` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__get_document` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__cat_indices` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__get_mapping` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__cat_aliases` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__get_alias` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__count` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__cluster_health` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__cat_nodes` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__cat_shards` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__list_snapshots` | dockit · Elasticsearch | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__es__index_document` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__update_document` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__create_index` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__put_mapping` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__put_alias` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__update_aliases` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__bulk` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__reindex` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__restore_snapshot` | dockit · Elasticsearch | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__es__delete_document` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__es__delete_by_query` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__es__delete_index` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__es__delete_alias` | dockit · Elasticsearch | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__mongo__list_databases` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__list_collections` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__find` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__collection_stats` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__database_stats` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__server_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__repl_set_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__shard_status` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__count_documents` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__list_indexes` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__sample_documents` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__distinct` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__get_slow_queries` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__list_users` | dockit · MongoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__mongo__aggregate` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__insert_one` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__update_many` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__create_database` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__create_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__update_document` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__rename_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__clone_collection` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__create_index` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__drop_index` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__insert_many` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__find_one_and_update` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__bulk_write` | dockit · MongoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__mongo__delete_many` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__mongo__drop_database` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__mongo__drop_collection` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__mongo__delete_document` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__mongo__truncate_collection` | dockit · MongoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__dynamo__execute_query` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__describe_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__list_tables` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__query_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__scan_table` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__batch_get_items` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__describe_continuous_backups` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__describe_ttl` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__get_table_metrics` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__list_backups` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__describe_backup` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__describe_limits` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__list_tags` | dockit · DynamoDB | 🟢 Safe | Read Only | No |
+| `data_studio__dockit__dynamo__execute_write` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__create_item` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__batch_write_items` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__update_item` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__transact_write_items` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__create_gsi` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__update_gsi` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__create_table` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__update_table_config` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__update_ttl` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__update_pitr` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__update_streams` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__restore_table` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__create_backup` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__tag_resource` | dockit · DynamoDB | 🟡 Elevated | Data Read-Write | No |
+| `data_studio__dockit__dynamo__execute_delete` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__dynamo__delete_item` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__dynamo__delete_gsi` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__dynamo__delete_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+| `data_studio__dockit__dynamo__truncate_table` | dockit · DynamoDB | 🔴 Destructive | Full Access | Yes |
+**117 tools total.** Read-only operations run automatically under **Read Only** mode. Elevated operations (writes, index/schema changes) require **Data Read-Write**. Destructive operations (DELETE, DROP, TRUNCATE) require **Full Access** and always surface an explicit **user confirmation** prompt.
 
 ## Development
 
