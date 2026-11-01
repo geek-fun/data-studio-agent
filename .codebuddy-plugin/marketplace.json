@@ -1,0 +1,20 @@
+{
+  "name": "geekfun-plugins",
+  "owner": {
+    "name": "GeekFun",
+    "url": "https://github.com/geek-fun"
+  },
+  "plugins": [
+    {
+      "name": "data-studio",
+      "source": "./packages/data-studio",
+      "description": "Secure database access for AI agents via the data_studio__* MCP tools: 70+ SQL databases through SqlKit, Elasticsearch/OpenSearch/MongoDB/DynamoDB through DocKit. Credentials never leave your desktop apps.",
+      "version": "0.1.12",
+      "author": {
+        "name": "GeekFun",
+        "url": "https://github.com/geek-fun"
+      },
+      "license": "Apache-2.0"
+    }
+  ]
+}

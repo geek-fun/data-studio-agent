@@ -136,6 +136,14 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 
 Run `dsh web --patch "$PWD/data-studio.cordis.yml"`, or merge the `insert` patch into `$DSH_HOME/cordis.patch.yml` to keep it across runs. Tools appear as `mcp__data-studio__*` (DSH is developer preview — its config surface may change).
 
+**WorkBuddy / CodeBuddy CLI.** One command:
+
+```bash
+codebuddy mcp add --scope user data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+Or add the same `mcpServers` JSON shown for Cursor above to the project-level `.mcp.json` (`~/.codebuddy/.mcp.json` for user scope).
+
 **Any other MCP client.** Register a stdio server with command `npx` and args `-y @geek-fun/data-studio-mcp`.
 
 ### 4. Tune permissions (optional)

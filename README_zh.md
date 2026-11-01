@@ -136,6 +136,14 @@ claude mcp add --transport stdio data-studio -- npx -y @geek-fun/data-studio-mcp
 
 启动时执行 `dsh web --patch "$PWD/data-studio.cordis.yml"`，或将 `insert` 补丁合并进 `$DSH_HOME/cordis.patch.yml` 以持久生效。工具名为 `mcp__data-studio__*`（DSH 处于开发者预览阶段，配置形态可能变化）。
 
+**WorkBuddy / CodeBuddy CLI。** 一条命令即可：
+
+```bash
+codebuddy mcp add --scope user data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+或将上方 Cursor 的 `mcpServers` JSON 加入项目级 `.mcp.json`（用户级为 `~/.codebuddy/.mcp.json`）。
+
 **任何其他 MCP 客户端。** 注册一个 stdio 服务器，命令 `npx`，参数 `-y @geek-fun/data-studio-mcp`。
 
 ### 4. 调整权限（可选）

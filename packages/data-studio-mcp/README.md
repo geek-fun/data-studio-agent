@@ -102,6 +102,14 @@ Save the overlay as `data-studio.cordis.yml`, then run `dsh web --patch "$PWD/da
 
 To keep it across runs, merge the `insert` patch into `$DSH_HOME/cordis.patch.yml`. Tools appear as `mcp__data-studio__*`.
 
+### WorkBuddy / CodeBuddy CLI
+
+```bash
+codebuddy mcp add --scope user data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+Or add the same `mcpServers` entry as Cursor/Windsurf above to the project-level `.mcp.json` (`~/.codebuddy/.mcp.json` for user scope).
+
 ## Usage
 
 Once connected, just ask in plain language. The agent calls the database tools for you:

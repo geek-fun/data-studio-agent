@@ -102,6 +102,14 @@ npx -y @geek-fun/data-studio-mcp
 
 要跨会话保留，将 `insert` 补丁合并进 `$DSH_HOME/cordis.patch.yml`。工具名为 `mcp__data-studio__*`。
 
+### WorkBuddy / CodeBuddy CLI
+
+```bash
+codebuddy mcp add --scope user data-studio -- npx -y @geek-fun/data-studio-mcp
+```
+
+或将上方 Cursor/Windsurf 的 `mcpServers` 条目加入项目级 `.mcp.json`（用户级为 `~/.codebuddy/.mcp.json`）。
+
 ## 使用方法
 
 连接成功后，直接用自然语言提问即可。AI 助手会为你调用数据库工具：

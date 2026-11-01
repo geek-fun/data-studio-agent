@@ -6,9 +6,7 @@
       "args": [
         "-y",
         "@geek-fun/data-studio-mcp@0.1.12"
-      ],
-      "enabled": true,
-      "timeoutMs": 60000
+      ]
     }
   }
 }
