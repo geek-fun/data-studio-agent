@@ -2362,7 +2362,7 @@ mod execution_authorization_tests {
                 .block_on(execute_phase2_3(vec![tool, second], &store, &context, &mut cancel_rx))
                 .unwrap();
             assert_eq!(executor.calls.load(Ordering::SeqCst), 2, "parallel={parallel}");
-            let denied: usize =
+            let denied: i64 =
                 db.0.lock()
                     .unwrap()
                     .query_row(
