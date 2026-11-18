@@ -48,6 +48,8 @@ impl SourceKind {
                     | "MARIADB"
                     | "TIDB"
                     | "COCKROACHDB"
+                    | "CASSANDRA"
+                    | "SCYLLADB"
             ),
             SourceKind::SearchEngine => matches!(
                 db_type.to_uppercase().as_str(),

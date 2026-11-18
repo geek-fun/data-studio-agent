@@ -156,6 +156,18 @@ mod tests {
     }
 
     #[test]
+    fn test_sql_database_capabilities_surface_for_cql_engines() {
+        let mut reg = CapabilityRegistry::new();
+        reg.register(make_cap("sql_query", SourceKind::SqlDatabase, &["agent"]));
+
+        for db_type in ["CASSANDRA", "SCYLLADB", "cassandra", "scylladb"] {
+            let results = reg.matching_sources(&[db_type.to_string()]);
+            assert_eq!(results.len(), 1, "db_type {db_type} should surface SqlDatabase capabilities");
+            assert_eq!(results[0].name, "sql_query");
+        }
+    }
+
+    #[test]
     fn test_matching_sources_excludes_non_agent_tags() {
         let mut reg = CapabilityRegistry::new();
         reg.register(make_cap("ui_only", SourceKind::Database("ELASTICSEARCH"), &["ui"]));
