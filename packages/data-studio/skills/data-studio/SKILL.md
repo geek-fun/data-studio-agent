@@ -19,9 +19,9 @@ MCP tools prefixed `data_studio__*` route to the user's local [dockit](https://g
 ## Prerequisites
 
 - dockit and/or sqlkit installed and running, with at least one database connection added.
-- **Settings → MCP Bridge → Auto-start** enabled in the desktop apps (on by default).
+- **Settings → Data Studio Bridge → Auto-start** enabled in the desktop apps (on by default).
 
-If tools fail to connect, tell the user to launch the desktop apps and check Settings → MCP Bridge. Never ask the user for credentials: real credentials are resolved inside the apps, and tools only ever accept an opaque `connection_id`.
+If tools fail to connect, tell the user to launch the desktop apps and check Settings → Data Studio Bridge. Never ask the user for credentials: real credentials are resolved inside the apps, and tools only ever accept an opaque `connection_id`.
 
 ## Workflow
 

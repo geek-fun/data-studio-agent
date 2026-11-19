@@ -18,6 +18,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { launchHint, type BackendName } from './discovery.js';
+import { identityState } from './identity.js';
 import { listConnections } from './connections.js';
 import {
   listResources,
@@ -129,6 +130,12 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
       },
     },
   );
+
+  // Once the AI client identifies itself, downstream bridge requests carry
+  // its name so the desktop tray can show who is connected.
+  server.oninitialized = () => {
+    identityState.clientName = server.getClientVersion()?.name ?? '';
+  };
 
   const snapshotForResources = () => {
     const snapshot = getSnapshot();
