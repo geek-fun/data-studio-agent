@@ -1,4 +1,5 @@
 import type { BackendInfo } from './discovery.js';
+import { identityHeaders } from './identity.js';
 
 export type BridgeToolDef = {
   name: string;
@@ -47,7 +48,7 @@ export const createBackendClient = (info: BackendInfo): BackendClient => {
     async listTools(): Promise<BridgeCatalog> {
       const res = await fetch(`${info.baseUrl}/tools`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...identityHeaders() },
         signal: AbortSignal.timeout(5_000),
       });
 
@@ -74,7 +75,7 @@ export const createBackendClient = (info: BackendInfo): BackendClient => {
 
       const res = await fetch(`${info.baseUrl}/invoke`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...identityHeaders() },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(30_000),
       });
@@ -87,7 +88,10 @@ export const createBackendClient = (info: BackendInfo): BackendClient => {
 /** Any HTTP response (even 404) proves the port is listening — guards against stale port files. */
 export const probeBackend = async (info: BackendInfo): Promise<boolean> => {
   try {
-    await fetch(info.baseUrl, { signal: AbortSignal.timeout(1_500) });
+    await fetch(info.baseUrl, {
+      headers: identityHeaders(),
+      signal: AbortSignal.timeout(1_500),
+    });
     return true;
   } catch {
     return false;

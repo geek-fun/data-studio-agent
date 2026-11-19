@@ -12,7 +12,7 @@ English documentation in [README.md](README.md)。
 ## 前置条件
 
 1. 安装并启动 [dockit](https://github.com/geek-fun/dockit) 和/或 [sqlkit](https://github.com/geek-fun/sqlkit),并添加数据库连接。
-2. 保持桌面应用 **Settings → MCP Bridge → Auto-start** 开启(默认开启)。
+2. 保持桌面应用 **Settings → Data Studio Bridge → Auto-start** 开启(默认开启)。
 3. PATH 中需有 Node.js ≥ 18(MCP server 通过 `npx -y @geek-fun/data-studio-mcp@0.1.12` 启动)。
 
 ## 披露信息

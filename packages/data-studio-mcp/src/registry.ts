@@ -151,7 +151,7 @@ export class BackendRegistry {
           baseUrl: null,
           status: 'unavailable',
           toolCount: 0,
-          hint: `${displayName(cfg.name)} is not running or its port file is missing. ${launchHint(cfg.name)} and enable MCP Bridge auto-start, or set ${cfg.envVar}.`,
+          hint: `${displayName(cfg.name)} is not running or its port file is missing. ${launchHint(cfg.name)} and enable Data Studio Bridge auto-start, or set ${cfg.envVar}.`,
         };
       }
       if (!connected) {

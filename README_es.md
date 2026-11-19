@@ -52,7 +52,7 @@ Este repositorio contiene el **Data Studio MCP Server**, un servidor de [Model C
 
 ### 1. Requisitos previos
 
-Instala e inicia [dockit](https://github.com/geek-fun/dockit) y/o [sqlkit](https://github.com/geek-fun/sqlkit), agrega una conexión de base de datos y verifica que **Configuración → MCP Bridge → Inicio automático** esté habilitado (lo está de forma predeterminada). Instala ambas aplicaciones para tener el conjunto completo de herramientas SQL + NoSQL.
+Instala e inicia [dockit](https://github.com/geek-fun/dockit) y/o [sqlkit](https://github.com/geek-fun/sqlkit), agrega una conexión de base de datos y verifica que **Configuración → Data Studio Bridge → Inicio automático** esté habilitado (lo está de forma predeterminada). Instala ambas aplicaciones para tener el conjunto completo de herramientas SQL + NoSQL.
 
 ### 2. Instala el servidor MCP
 
@@ -148,7 +148,7 @@ O agrega el mismo JSON `mcpServers` mostrado arriba para Cursor al archivo `.mcp
 
 ### 4. Ajusta los permisos (opcional)
 
-Abre **Configuración → MCP Bridge** en dockit/sqlkit para controlar lo que el agente puede hacer:
+Abre **Configuración → Data Studio Bridge** en dockit/sqlkit para controlar lo que el agente puede hacer:
 
 | Modo de permiso | Lo que el agente puede hacer |
 |---|---|
