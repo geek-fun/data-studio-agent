@@ -7,7 +7,7 @@ How to control which database operations your AI agent can run. Covers the three
 | Layer | What | Where | Who configures |
 |---|---|---|---|
 | **L1 — Tool risk** | Every capability declares a static `RiskLevel` (`safe` / `elevated` / `destructive`) | `data-studio-agent` crate, capability registry | We (static metadata) |
-| **L2 — Server policy** | `McpPolicy` decides each invocation: `Allow` / `Ask` / `Deny` | dockit/sqlkit bridges — both the MCP bridge **and** the built-in agent loop | User (Settings → Data Studio Bridge) |
+| **L2 — Server policy** | `McpPolicy` decides each invocation: `Allow` / `Ask` / `Deny` | dockit/sqlkit bridges — both the MCP bridge **and** the built-in agent loop | User (Settings → MCP Bridge) |
 | **L3 — Client session policy** | Your AI tool's own confirmation UX (Ask/Auto mode, permission rules) | The agent client itself | User / agent client |
 
 The layers never merge. L1 describes tools, L2 enforces safety, L3 shapes the confirmation dialogs.
@@ -30,7 +30,7 @@ The built-in agent loop enforces `Deny` server-side: a denied tool is marked `de
 
 ## Server-side policy (dockit/sqlkit Settings → MCP)
 
-Open **Settings → Data Studio Bridge** in dockit or sqlkit.
+Open **Settings → MCP Bridge** in dockit or sqlkit.
 
 ### Permission modes
 
@@ -52,7 +52,7 @@ When **OFF**: Destructive tools are hidden from `tools/list`. The agent never se
 
 Whether a tool class is gated (by mode or by the confirm-destructive toggle), every surviving tool description carries a `MCP policy notice` explaining what is hidden and how to lift the gate:
 
-> MCP policy notice: destructive operations (delete/drop/truncate) are hidden — enable Full Access with Confirm Destructive in Settings → Data Studio Bridge to use them
+> MCP policy notice: destructive operations (delete/drop/truncate) are hidden — enable Full Access with Confirm Destructive in Settings → MCP Bridge to use them
 
 This mirrors the [Neon MCP server's read-only notice](https://github.com/neondatabase/mcp-server-neon/blob/main/mcp/tools/grant-filter.ts). The agent learns at discovery time that the capability exists but is gated, and can guide the user to enable it — instead of being unaware of the capability, or planning around tools that are visible but always fail.
 
@@ -60,9 +60,9 @@ This mirrors the [Neon MCP server's read-only notice](https://github.com/neondat
 
 When a denied capability is invoked directly (defense-in-depth against bypassing `tools/list`), the bridge returns a 403-style error whose message tells the agent what to enable:
 
-- `requires FullAccess permission mode — switch it in Settings → Data Studio Bridge`
-- `destructive operations are disabled — enable 'Confirm Destructive Operations' in Settings → Data Studio Bridge`
-- `connection '<id>' is not in the MCP allowlist — add it in Settings → Data Studio Bridge`
+- `requires FullAccess permission mode — switch it in Settings → MCP Bridge`
+- `destructive operations are disabled — enable 'Confirm Destructive Operations' in Settings → MCP Bridge`
+- `connection '<id>' is not in the MCP allowlist — add it in Settings → MCP Bridge`
 
 The agent can relay this to the user verbatim.
 
@@ -70,7 +70,7 @@ The agent can relay this to the user verbatim.
 
 By default, the bridge exposes all connections. To restrict which database connections the MCP server can access:
 
-- Add connection IDs to the allowlist in Settings → Data Studio Bridge
+- Add connection IDs to the allowlist in Settings → MCP Bridge
 - Empty allowlist = all connections allowed
 - The `data_studio__list_connections` tool only returns connections in the allowlist
 

@@ -38,7 +38,7 @@
 
 1. 安装 [dockit](https://github.com/geek-fun/dockit) 和/或 [sqlkit](https://github.com/geek-fun/sqlkit)（免费、开源）
 2. 启动应用并添加至少一个数据库连接
-3. 确认 **设置 → Data Studio Bridge → 自动启动** 已开启（默认开启）
+3. 确认 **设置 → MCP Bridge → 自动启动** 已开启（默认开启）
 
 两个应用都装可获得完整工具集，SQL 和 NoSQL。装一个即可开始使用。
 

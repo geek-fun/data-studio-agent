@@ -52,7 +52,7 @@ This repository contains the **Data Studio MCP Server**, a [Model Context Protoc
 
 ### 1. Prerequisites
 
-Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](https://github.com/geek-fun/sqlkit), add a database connection, and make sure **Settings → Data Studio Bridge → Auto-start** is enabled (it is by default). Install both apps for the full SQL + NoSQL tool set.
+Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](https://github.com/geek-fun/sqlkit), add a database connection, and make sure **Settings → MCP Bridge → Auto-start** is enabled (it is by default). Install both apps for the full SQL + NoSQL tool set.
 
 ### 2. Install the MCP server
 
@@ -148,7 +148,7 @@ Or add the same `mcpServers` JSON shown for Cursor above to the project-level `.
 
 ### 4. Tune permissions (optional)
 
-Open **Settings → Data Studio Bridge** in dockit/sqlkit to control what the agent can do:
+Open **Settings → MCP Bridge** in dockit/sqlkit to control what the agent can do:
 
 | Permission mode | What the agent can do |
 |---|---|

@@ -38,7 +38,7 @@ If you already have the desktop apps installed, setup takes two steps: install t
 
 1. Install [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](https://github.com/geek-fun/sqlkit) (free, open source)
 2. Launch the app and add at least one database connection
-3. Make sure **Settings → Data Studio Bridge → Auto-start** is enabled (it is by default)
+3. Make sure **Settings → MCP Bridge → Auto-start** is enabled (it is by default)
 
 Install both apps to get the full tool set, SQL and NoSQL. One app is enough to get started.
 

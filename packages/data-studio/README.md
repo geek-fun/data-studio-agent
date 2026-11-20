@@ -12,7 +12,7 @@ A ZCode plugin that bundles the [Data Studio MCP server](https://www.npmjs.com/p
 ## Prerequisites
 
 1. Install and launch [dockit](https://github.com/geek-fun/dockit) and/or [sqlkit](https://github.com/geek-fun/sqlkit); add a database connection.
-2. Keep **Settings → Data Studio Bridge → Auto-start** enabled in the desktop apps (on by default).
+2. Keep **Settings → MCP Bridge → Auto-start** enabled in the desktop apps (on by default).
 3. Node.js ≥ 18 on PATH (the MCP server is started via `npx -y @geek-fun/data-studio-mcp@0.1.12`).
 
 ## Disclosure
