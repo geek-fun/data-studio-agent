@@ -254,7 +254,7 @@ describe('buildServer', () => {
         baseUrl: 'http://127.0.0.1:9120',
         status: 'unavailable',
         toolCount: 0,
-        hint: 'Launch DocKit: open -a DocKit',
+        hint: 'Launch DocKit: open -a DocKit. Its tray icon shows the MCP Bridge status.',
       },
       {
         name: 'sqlkit',
@@ -288,7 +288,7 @@ describe('buildServer', () => {
     expect(payload.backends[0]).toMatchObject({
       name: 'dockit',
       status: 'unavailable',
-      hint: 'Launch DocKit: open -a DocKit',
+      hint: 'Launch DocKit: open -a DocKit. Its tray icon shows the MCP Bridge status.',
       connectionCount: 0,
     });
     expect(payload.backends[1]).toMatchObject({
