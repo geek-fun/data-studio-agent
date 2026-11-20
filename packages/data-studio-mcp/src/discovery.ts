@@ -24,7 +24,7 @@ export const displayName = (name: BackendName): string => (name === 'dockit' ? '
 
 export const launchHint = (name: BackendName): string => {
   const app = displayName(name);
-  const trayNote = 'Its tray icon shows the Data Studio Bridge status.';
+  const trayNote = 'Its tray icon shows the MCP Bridge status.';
   if (process.platform === 'darwin') return `Launch ${app}: open -a ${app}. ${trayNote}`;
   if (process.platform === 'win32') return `Launch ${app} from the Start menu. ${trayNote}`;
   return `Launch ${app} from your applications menu. ${trayNote}`;

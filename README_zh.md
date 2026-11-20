@@ -52,7 +52,7 @@
 
 ### 1. 环境要求
 
-安装并启动 [dockit](https://github.com/geek-fun/dockit) 和/或 [sqlkit](https://github.com/geek-fun/sqlkit)，添加数据库连接，确认 **设置 → Data Studio Bridge → 自动启动** 已开启（默认开启）。两个应用都装可获得完整的 SQL + NoSQL 工具集。
+安装并启动 [dockit](https://github.com/geek-fun/dockit) 和/或 [sqlkit](https://github.com/geek-fun/sqlkit)，添加数据库连接，确认 **设置 → MCP Bridge → 自动启动** 已开启（默认开启）。两个应用都装可获得完整的 SQL + NoSQL 工具集。
 
 ### 2. 安装 MCP 服务器
 
@@ -148,7 +148,7 @@ codebuddy mcp add --scope user data-studio -- npx -y @geek-fun/data-studio-mcp
 
 ### 4. 调整权限（可选）
 
-在 dockit/sqlkit 中打开 **设置 → Data Studio Bridge**，控制代理能做什么：
+在 dockit/sqlkit 中打开 **设置 → MCP Bridge**，控制代理能做什么：
 
 | 权限模式 | 代理能做什么 |
 |---|---|

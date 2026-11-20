@@ -52,7 +52,7 @@
 
 ### 1. 前提条件
 
-[dockit](https://github.com/geek-fun/dockit) と [sqlkit](https://github.com/geek-fun/sqlkit) をインストールして起動し、データベース接続を追加して、**設定 → Data Studio Bridge → 自動起動** が有効になっていることを確認してください（デフォルトで有効です）。SQL + NoSQL の完全なツールセットを使うには、両方のアプリをインストールしてください。
+[dockit](https://github.com/geek-fun/dockit) と [sqlkit](https://github.com/geek-fun/sqlkit) をインストールして起動し、データベース接続を追加して、**設定 → MCP Bridge → 自動起動** が有効になっていることを確認してください（デフォルトで有効です）。SQL + NoSQL の完全なツールセットを使うには、両方のアプリをインストールしてください。
 
 ### 2. MCPサーバーをインストール
 
@@ -148,7 +148,7 @@ codebuddy mcp add --scope user data-studio -- npx -y @geek-fun/data-studio-mcp
 
 ### 4. 権限を調整する（任意）
 
-dockit/sqlkit で **設定 → Data Studio Bridge** を開き、エージェントが実行できる操作を制御します：
+dockit/sqlkit で **設定 → MCP Bridge** を開き、エージェントが実行できる操作を制御します：
 
 | 権限モード | エージェントにできること |
 |---|---|
