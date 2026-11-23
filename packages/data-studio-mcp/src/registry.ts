@@ -3,6 +3,7 @@ import { listConnections, type MergedConnection } from './connections.js';
 import {
   discoverBackends,
   KNOWN_BACKENDS,
+  TRAY_STATUS_HINT,
   launchHint,
   displayName,
   type BackendInfo,
@@ -151,7 +152,11 @@ export class BackendRegistry {
           baseUrl: null,
           status: 'unavailable',
           toolCount: 0,
-          hint: `${displayName(cfg.name)} is not running or its port file is missing. ${launchHint(cfg.name)} and enable MCP Bridge auto-start, or set ${cfg.envVar}.`,
+          hint: [
+            `${displayName(cfg.name)} is not running or its port file is missing.`,
+            `${launchHint(cfg.name)} and enable MCP Bridge auto-start, or set ${cfg.envVar}.`,
+            TRAY_STATUS_HINT,
+          ].join(' '),
         };
       }
       if (!connected) {
@@ -161,7 +166,11 @@ export class BackendRegistry {
           baseUrl: candidate.baseUrl,
           status: 'unavailable',
           toolCount: 0,
-          hint: `Port file points to ${candidate.port} but no bridge is responding. ${launchHint(cfg.name)}. Once running, its tools appear automatically.`,
+          hint: [
+            `Port file points to ${candidate.port} but no bridge is responding.`,
+            `${launchHint(cfg.name)}. Once the bridge is running, its tools appear automatically.`,
+            TRAY_STATUS_HINT,
+          ].join(' '),
         };
       }
       return {

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { BackendRegistry } from '../src/registry.js';
-import type { BackendInfo } from '../src/discovery.js';
+import { launchHint, type BackendInfo } from '../src/discovery.js';
 
 const mockServers: Server[] = [];
 const registries: BackendRegistry[] = [];
@@ -67,6 +67,9 @@ describe('BackendRegistry', () => {
       expect(s.hint.length).toBeGreaterThan(0);
       expect(s.toolCount).toBe(0);
     }
+    expect(snap.statuses[0].hint).toBe(
+      `DocKit is not running or its port file is missing. ${launchHint('dockit')} and enable MCP Bridge auto-start, or set DOCKIT_MCP_PORT. Its tray icon shows the MCP Bridge status.`,
+    );
   });
 
   it('S2b: reports discovered-but-unreachable backends with their port and a hint', async () => {
@@ -79,7 +82,9 @@ describe('BackendRegistry', () => {
     const sqlkit = registry.snapshot().statuses.find(s => s.name === 'sqlkit');
     expect(sqlkit?.status).toBe('unavailable');
     expect(sqlkit?.port).toBe(9121);
-    expect(sqlkit?.hint).toContain('9121');
+    expect(sqlkit?.hint).toBe(
+      `Port file points to 9121 but no bridge is responding. ${launchHint('sqlkit')}. Once the bridge is running, its tools appear automatically. Its tray icon shows the MCP Bridge status.`,
+    );
   });
 
   it('S6: registers tools from reachable backends and marks them connected', async () => {

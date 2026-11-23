@@ -17,7 +17,7 @@ import {
   type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
 
-import { launchHint, type BackendName } from './discovery.js';
+import { launchHint, TRAY_STATUS_HINT, type BackendName } from './discovery.js';
 import { identityState } from './identity.js';
 import { listConnections } from './connections.js';
 import {
@@ -114,7 +114,7 @@ const structuredError = (
 
 const remediationFor = (backendName: BackendName, status: BackendStatus | undefined): string => {
   if (status && status.status === 'unavailable' && status.hint) return status.hint;
-  return launchHint(backendName);
+  return `${launchHint(backendName)}. ${TRAY_STATUS_HINT}`;
 };
 
 export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Server => {
@@ -264,7 +264,7 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
       const remediation = remediationFor(route.backendName, status);
       return structuredError(
         'BACKEND_UNAVAILABLE',
-        `${route.backendName} backend unavailable${status?.port ? ` (port ${status.port})` : ''}. Fix: ${remediation}. Check: data_studio__get_status.`,
+        `${route.backendName} backend unavailable${status?.port ? ` (port ${status.port})` : ''}. Fix: ${remediation}\nCheck: data_studio__get_status.`,
         { backend: route.backendName, port: status?.port ?? null, remediation },
       );
     }
@@ -284,7 +284,7 @@ export const buildServer = ({ getSnapshot, readonly }: BuildServerOptions): Serv
       const remediation = remediationFor(route.backendName, status);
       return structuredError(
         'BACKEND_UNAVAILABLE',
-        `${route.backendName} backend unavailable (${detail}). Fix: ${remediation}. Check: data_studio__get_status.`,
+        `${route.backendName} backend unavailable (${detail}). Fix: ${remediation}\nCheck: data_studio__get_status.`,
         { backend: route.backendName, port: status.port, remediation },
       );
     }

@@ -35,12 +35,17 @@ export const SESSION_ID = randomUUID();
 
 export const identityState = { clientName: '' };
 
+const MAX_CLIENT_LABEL_LENGTH = 48;
+
 export const identityHeaders = (): Record<string, string> => {
   const product = `data-studio-mcp/${SERVER_VERSION}`;
+  const clientName = identityState.clientName.trim();
+  // The desktop bridges decode printable ASCII headers and display up to 48 characters.
+  const label = /^[\x20-\x7e]+$/.test(clientName)
+    ? clientName.slice(0, MAX_CLIENT_LABEL_LENGTH).trimEnd()
+    : '';
   return {
     'X-Data-Studio-Session': SESSION_ID,
-    'X-Data-Studio-Client': identityState.clientName
-      ? `${product} (${identityState.clientName})`
-      : product,
+    'X-Data-Studio-Client': label ? `${product} (${label})` : product,
   };
 };
