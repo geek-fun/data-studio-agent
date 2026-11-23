@@ -147,8 +147,11 @@ describe('KNOWN_BACKENDS', () => {
 });
 
 describe('launchHint', () => {
-  it('mentions the app name for each backend', () => {
-    expect(launchHint('dockit')).toContain('DocKit');
-    expect(launchHint('sqlkit')).toContain('SqlKit');
+  it('returns a launch action for each backend', () => {
+    expect(launchHint('dockit')).toMatch(/^Launch DocKit .+[^.]$/);
+    expect(launchHint('sqlkit')).toMatch(/^Launch SqlKit .+[^.]$/);
+    if (process.platform === 'darwin') {
+      expect(launchHint('dockit')).toBe('Launch DocKit with `open -a DocKit`');
+    }
   });
 });

@@ -1,4 +1,7 @@
+import { once } from 'node:events';
 import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 
 import { describe, it, expect } from 'vitest';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -20,6 +23,8 @@ import {
 } from '../src/status.js';
 import { buildToolAnnotations, type McpToolDef, type Route } from '../src/tools.js';
 import type { BackendClient } from '../src/backends.js';
+import { identityState } from '../src/identity.js';
+import { BackendRegistry } from '../src/registry.js';
 
 type RiskLevel = 'safe' | 'elevated' | 'destructive';
 
@@ -52,9 +57,9 @@ const makeOpts = (
   readonly: overrides.readonly ?? false,
 });
 
-const connectPair = async (server: Server) => {
+const connectPair = async (server: Server, clientName = 'test-client') => {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  const client = new Client({ name: 'test-client', version: '0.0.0' });
+  const client = new Client({ name: clientName, version: '0.0.0' });
   await server.connect(serverTransport);
   await client.connect(clientTransport);
   return { client, clientTransport, serverTransport };
@@ -124,6 +129,75 @@ describe('filterReadOnly', () => {
 describe('buildServer', () => {
   it('returns an MCP Server instance', () => {
     expect(buildServer(makeOpts())).toBeInstanceOf(Server);
+  });
+
+  it.each([
+    { clientName: 'ZCode', label: ' (ZCode)' },
+    { clientName: '数据助手', label: '' },
+    { clientName: 'Café', label: '' },
+    { clientName: 'a'.repeat(100), label: ` (${'a'.repeat(48)})` },
+  ])('sends valid bridge headers after $clientName initializes', async ({ clientName, label }) => {
+    const requests: {
+      path: string | undefined;
+      sessionId: string | string[] | undefined;
+      client: string | string[] | undefined;
+    }[] = [];
+    const bridge = createServer((req, res) => {
+      requests.push({
+        path: req.url,
+        sessionId: req.headers['x-data-studio-session'],
+        client: req.headers['x-data-studio-client'],
+      });
+      req.resume();
+      res.setHeader('Content-Type', 'application/json');
+      res.end(
+        JSON.stringify(
+          req.url === '/tools'
+            ? { tools: [makeTool('es_search', 'safe')] }
+            : { status: 200, data: 'ok' },
+        ),
+      );
+    });
+    bridge.listen(0, '127.0.0.1');
+    await once(bridge, 'listening');
+    const { port } = bridge.address() as AddressInfo;
+    const registry = new BackendRegistry({
+      readonly: false,
+      discover: () => [{ name: 'dockit', port, baseUrl: `http://127.0.0.1:${port}` }],
+    });
+    const server = buildServer({ getSnapshot: () => registry.snapshot(), readonly: false });
+    const originalClientName = identityState.clientName;
+    identityState.clientName = '';
+
+    try {
+      await registry.refresh();
+      const product = `data-studio-mcp/${SERVER_VERSION}`;
+      expect(requests[0]).toMatchObject({
+        path: '/',
+        sessionId: expect.any(String),
+        client: product,
+      });
+      const { sessionId } = requests[0];
+      const startupRequestCount = requests.length;
+
+      const { client } = await connectPair(server, clientName);
+      const toolName = 'data_studio__dockit__es_search';
+      const result = await client.callTool({ name: toolName });
+      expect(textOf(result)).toBe('ok');
+      await registry.refresh();
+      expect(registry.snapshot().statuses[0].status).toBe('connected');
+      expect(registry.snapshot().tools.map(tool => tool.name)).toContain(toolName);
+
+      expect(requests.slice(startupRequestCount)).toEqual(
+        expect.arrayContaining(
+          ['/', '/tools', '/invoke'].map(path => ({ path, sessionId, client: product + label })),
+        ),
+      );
+    } finally {
+      identityState.clientName = originalClientName;
+      await server.close();
+      await new Promise<void>(resolve => bridge.close(() => resolve()));
+    }
   });
 
   it('S1: stays up with zero backends and always registers both synthetic tools', async () => {
@@ -247,6 +321,7 @@ describe('buildServer', () => {
   });
 
   it('S2: get_status returns per-backend availability, hints, tool counts and server info', async () => {
+    const dockitHint = 'DocKit bridge is unavailable.';
     const statuses: BackendStatus[] = [
       {
         name: 'dockit',
@@ -254,7 +329,7 @@ describe('buildServer', () => {
         baseUrl: 'http://127.0.0.1:9120',
         status: 'unavailable',
         toolCount: 0,
-        hint: 'Launch DocKit: open -a DocKit. Its tray icon shows the MCP Bridge status.',
+        hint: dockitHint,
       },
       {
         name: 'sqlkit',
@@ -288,7 +363,7 @@ describe('buildServer', () => {
     expect(payload.backends[0]).toMatchObject({
       name: 'dockit',
       status: 'unavailable',
-      hint: 'Launch DocKit: open -a DocKit. Its tray icon shows the MCP Bridge status.',
+      hint: dockitHint,
       connectionCount: 0,
     });
     expect(payload.backends[1]).toMatchObject({
@@ -319,7 +394,7 @@ describe('buildServer', () => {
       backend: 'dockit',
     });
     expect(textOf(res)).toContain('DocKit');
-    expect(textOf(res)).toContain('data_studio__get_status');
+    expect(textOf(res)).toContain('MCP Bridge status.\nCheck: data_studio__get_status.');
   });
 
   it('S5: a bridge failure during a tool call returns a structured error with remediation', async () => {
@@ -362,6 +437,7 @@ describe('buildServer', () => {
       port: 9120,
     });
     expect(textOf(res)).toContain('DocKit');
+    expect(textOf(res)).toContain('MCP Bridge status.\nCheck: data_studio__get_status.');
   });
 
   it('S5: an unknown tool returns a structured error pointing at get_status', async () => {

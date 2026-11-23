@@ -22,12 +22,13 @@ export const KNOWN_BACKENDS: ReadonlyArray<{
 
 export const displayName = (name: BackendName): string => (name === 'dockit' ? 'DocKit' : 'SqlKit');
 
+export const TRAY_STATUS_HINT = 'Its tray icon shows the MCP Bridge status.';
+
 export const launchHint = (name: BackendName): string => {
   const app = displayName(name);
-  const trayNote = 'Its tray icon shows the MCP Bridge status.';
-  if (process.platform === 'darwin') return `Launch ${app}: open -a ${app}. ${trayNote}`;
-  if (process.platform === 'win32') return `Launch ${app} from the Start menu. ${trayNote}`;
-  return `Launch ${app} from your applications menu. ${trayNote}`;
+  if (process.platform === 'darwin') return `Launch ${app} with \`open -a ${app}\``;
+  if (process.platform === 'win32') return `Launch ${app} from the Start menu`;
+  return `Launch ${app} from your applications menu`;
 };
 
 export const appDataDir = (bundleId: string): string => {
